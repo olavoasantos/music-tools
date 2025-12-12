@@ -1,274 +1,256 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3D Interactive Fretboard</title>
-  <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      background-color: #111;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      color: white;
-      user-select: none;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Interactive Guitar Fretboard</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #111;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+            user-select: none;
+        }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none; /* Allow clicking through the background */
+            background: rgba(0, 0, 0, 0.6);
+            padding: 15px;
+            border-radius: 8px;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.1);
+            max-width: 280px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            scrollbar-width: thin;
+            scrollbar-color: #555 #222;
+        }
+        h1 {
+            margin: 0 0 5px 0;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        p {
+            margin: 0 0 12px 0;
+            font-size: 0.85rem;
+            color: #aaa;
+            line-height: 1.4;
+        }
+        
+        /* Interactive elements inside the non-interactive container */
+        .control-group, .accordion-header, .accordion-content {
+            pointer-events: auto;
+        }
 
-    #info {
-      position: absolute;
-      top: 20px;
-      left: 20px;
-      pointer-events: none;
-      /* Allow clicking through the background */
-      background: rgba(0, 0, 0, 0.6);
-      padding: 15px;
-      border-radius: 8px;
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      max-width: 280px;
-      max-height: 90vh;
-      overflow-y: auto;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-      scrollbar-width: thin;
-      scrollbar-color: #555 #222;
-    }
+        .control-group {
+            margin-bottom: 10px;
+        }
+        
+        label {
+            font-size: 0.85rem;
+            margin-bottom: 4px;
+            display: block;
+            color: #ccc;
+        }
+        
+        select {
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            padding: 6px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            width: 100%;
+            outline: none;
+        }
+        select:hover {
+            border-color: #777;
+        }
 
-    h1 {
-      margin: 0 0 5px 0;
-      font-size: 1.2rem;
-      font-weight: 600;
-    }
+        /* Accordion Styles */
+        .accordion-header {
+            background-color: rgba(255,255,255,0.1);
+            color: #ddd;
+            cursor: pointer;
+            padding: 8px 10px;
+            width: 100%;
+            border: none;
+            text-align: left;
+            outline: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-sizing: border-box;
+            transition: background-color 0.2s;
+            margin-top: 10px;
+        }
 
-    p {
-      margin: 0 0 12px 0;
-      font-size: 0.85rem;
-      color: #aaa;
-      line-height: 1.4;
-    }
+        .accordion-header:hover {
+            background-color: rgba(255,255,255,0.2);
+            color: #fff;
+        }
 
-    /* Interactive elements inside the non-interactive container */
-    .control-group,
-    .accordion-header,
-    .accordion-content {
-      pointer-events: auto;
-    }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+            opacity: 0;
+            background: rgba(0,0,0,0.2);
+            border-radius: 0 0 4px 4px;
+            margin-top: 2px;
+        }
 
-    .control-group {
-      margin-bottom: 10px;
-    }
+        .accordion-content.open {
+            max-height: 400px;
+            opacity: 1;
+            padding: 10px 5px;
+            overflow-y: auto;
+        }
 
-    label {
-      font-size: 0.85rem;
-      margin-bottom: 4px;
-      display: block;
-      color: #ccc;
-    }
+        /* Tuning Row Styles */
+        .tuning-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+            padding: 0 5px;
+        }
+        .tuning-label { color: #aaa; font-family: monospace; }
+        .tuning-input {
+            background: #222; border: 1px solid #444; color: #fff; width: 50px;
+            padding: 3px 0; border-radius: 3px; text-align: center;
+            text-transform: uppercase; font-family: monospace; font-size: 0.9rem;
+        }
+        .tuning-input:focus { outline: none; border-color: #0077ff; background: #333; }
 
-    select {
-      background: #333;
-      color: white;
-      border: 1px solid #555;
-      padding: 6px;
-      border-radius: 4px;
-      font-size: 0.9rem;
-      cursor: pointer;
-      width: 100%;
-      outline: none;
-    }
+        .tuning-btn {
+            background: #444;
+            color: #fff;
+            border: 1px solid #666;
+            border-radius: 4px;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            padding: 0;
+            line-height: 1;
+        }
+        .tuning-btn:hover {
+            background: #666;
+            border-color: #888;
+        }
 
-    select:hover {
-      border-color: #777;
-    }
+        /* Scale Controls */
+        .scale-row {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+        .scale-row select {
+            width: 50%;
+        }
 
-    /* Accordion Styles */
-    .accordion-header {
-      background-color: rgba(255, 255, 255, 0.1);
-      color: #ddd;
-      cursor: pointer;
-      padding: 8px 10px;
-      width: 100%;
-      border: none;
-      text-align: left;
-      outline: none;
-      font-size: 0.85rem;
-      font-weight: 600;
-      border-radius: 4px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-sizing: border-box;
-      transition: background-color 0.2s;
-      margin-top: 10px;
-    }
-
-    .accordion-header:hover {
-      background-color: rgba(255, 255, 255, 0.2);
-      color: #fff;
-    }
-
-    .accordion-content {
-      max-height: 0;
-      overflow: hidden;
-      transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
-      opacity: 0;
-      background: rgba(0, 0, 0, 0.2);
-      border-radius: 0 0 4px 4px;
-      margin-top: 2px;
-    }
-
-    .accordion-content.open {
-      max-height: 400px;
-      opacity: 1;
-      padding: 10px 5px;
-      overflow-y: auto;
-    }
-
-    /* Tuning Row Styles */
-    .tuning-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 6px;
-      font-size: 0.85rem;
-      padding: 0 5px;
-    }
-
-    .tuning-label {
-      color: #aaa;
-      font-family: monospace;
-    }
-
-    .tuning-input {
-      background: #222;
-      border: 1px solid #444;
-      color: #fff;
-      width: 50px;
-      padding: 3px 0;
-      border-radius: 3px;
-      text-align: center;
-      text-transform: uppercase;
-      font-family: monospace;
-      font-size: 0.9rem;
-    }
-
-    .tuning-input:focus {
-      outline: none;
-      border-color: #0077ff;
-      background: #333;
-    }
-
-    /* Scale Controls */
-    .scale-row {
-      display: flex;
-      gap: 5px;
-      margin-bottom: 10px;
-    }
-
-    .scale-row select {
-      width: 50%;
-    }
-
-    #loading {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 1.5rem;
-      color: #fff;
-      pointer-events: none;
-      transition: opacity 0.5s;
-    }
-
-    #error-msg {
-      color: #ff5555;
-      font-size: 0.8rem;
-      margin-top: 10px;
-      display: none;
-    }
-
-    /* Scrollbar styling */
-    ::-webkit-scrollbar {
-      width: 4px;
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background: #555;
-      border-radius: 2px;
-    }
-  </style>
+        #loading {
+            position: absolute;
+            top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 1.5rem; color: #fff; pointer-events: none;
+            transition: opacity 0.5s;
+        }
+        #error-msg {
+            color: #ff5555;
+            font-size: 0.8rem;
+            margin-top: 10px;
+            display: none;
+        }
+        
+        /* Scrollbar styling */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #555; border-radius: 2px; }
+    </style>
 </head>
-
 <body>
 
-  <div id="info">
-    <h1>3D Fretboard</h1>
-    <p>Click strings/labels to play.<br>
-      Drag to Rotate/Pan.<br>
-      Scroll to Zoom.</p>
+    <div id="info">
+        <h1>3D Guitar Fretboard</h1>
+        <p>Click strings/labels to play.<br>
+        Drag to Rotate/Pan.<br>
+        Scroll to Zoom.</p>
+        
+        <div class="control-group">
+            <label for="string-select">Preset / Strings</label>
+            <select id="string-select">
+                <option value="4">4 String Bass</option>
+                <option value="5">5 String Bass</option>
+                <option value="6-bass">6 String Bass</option>
+                <option value="6" selected>6 String Guitar</option>
+                <option value="7">7 String Guitar</option>
+                <option value="8">8 String Guitar</option>
+                <option value="9">9 String Guitar</option>
+            </select>
+        </div>
 
-    <div class="control-group">
-      <label for="string-select">Preset / Strings</label>
-      <select id="string-select">
-        <option value="4">4 String Bass</option>
-        <option value="5">5 String Bass</option>
-        <option value="6-bass">6 String Bass</option>
-        <option value="6" selected>6 String Guitar</option>
-        <option value="7">7 String Guitar</option>
-        <option value="8">8 String Guitar</option>
-        <option value="9">9 String Guitar</option>
-      </select>
+        <!-- Scale Visualization Accordion -->
+        <button id="scale-toggle" class="accordion-header">
+            Scale Visualization <span class="arrow">▼</span>
+        </button>
+        <div id="scale-container" class="accordion-content">
+            <label>Root & Scale Type</label>
+            <div class="scale-row">
+                <select id="scale-root">
+                    <option value="-1">--</option>
+                    <option value="0" selected>C</option>
+                    <option value="1">C#</option>
+                    <option value="2">D</option>
+                    <option value="3">D#</option>
+                    <option value="4">E</option>
+                    <option value="5">F</option>
+                    <option value="6">F#</option>
+                    <option value="7">G</option>
+                    <option value="8">G#</option>
+                    <option value="9">A</option>
+                    <option value="10">A#</option>
+                    <option value="11">B</option>
+                </select>
+                <select id="scale-type">
+                    <option value="none" selected>None</option>
+                    <option value="major">Major</option>
+                    <option value="minor">Minor</option>
+                    <option value="pentatonic_major">Pentatonic Maj</option>
+                    <option value="pentatonic_minor">Pentatonic Min</option>
+                    <option value="blues">Blues</option>
+                    <option value="chromatic">Chromatic</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Tuning Accordion -->
+        <button id="tuning-toggle" class="accordion-header">
+            Custom Tuning <span class="arrow">▼</span>
+        </button>
+        <div id="tuning-container" class="accordion-content">
+            <!-- Dynamic tuning inputs will go here -->
+        </div>
+        
+        <div id="error-msg"></div>
     </div>
 
-    <!-- Scale Visualization Accordion -->
-    <button id="scale-toggle" class="accordion-header">
-      Scale Visualization <span class="arrow">▼</span>
-    </button>
-    <div id="scale-container" class="accordion-content">
-      <label>Root & Scale Type</label>
-      <div class="scale-row">
-        <select id="scale-root">
-          <option value="-1">--</option>
-          <option value="0" selected>C</option>
-          <option value="1">C#</option>
-          <option value="2">D</option>
-          <option value="3">D#</option>
-          <option value="4">E</option>
-          <option value="5">F</option>
-          <option value="6">F#</option>
-          <option value="7">G</option>
-          <option value="8">G#</option>
-          <option value="9">A</option>
-          <option value="10">A#</option>
-          <option value="11">B</option>
-        </select>
-        <select id="scale-type">
-          <option value="none" selected>None</option>
-          <option value="major">Major</option>
-          <option value="minor">Minor</option>
-          <option value="pentatonic_major">Pentatonic Maj</option>
-          <option value="pentatonic_minor">Pentatonic Min</option>
-          <option value="blues">Blues</option>
-          <option value="chromatic">Chromatic</option>
-        </select>
-      </div>
-    </div>
+    <div id="loading">Loading 3D Engine...</div>
 
-    <!-- Tuning Accordion -->
-    <button id="tuning-toggle" class="accordion-header">
-      Custom Tuning <span class="arrow">▼</span>
-    </button>
-    <div id="tuning-container" class="accordion-content">
-      <!-- Dynamic tuning inputs will go here -->
-    </div>
-
-    <div id="error-msg"></div>
-  </div>
-
-  <div id="loading">Loading 3D Engine...</div>
-
-  <!-- Import Map for simple module loading -->
-  <script type="importmap">
+    <!-- Import Map for simple module loading -->
+    <script type="importmap">
         {
             "imports": {
                 "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -277,613 +259,703 @@
         }
     </script>
 
-  <script type="module">
-    import * as THREE from 'three';
-    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-    try {
-      // --- Music Utilities ---
-      const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        try {
+            // --- Music Utilities ---
+            const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+            
+            const SCALES = {
+                'major': [0, 2, 4, 5, 7, 9, 11],
+                'minor': [0, 2, 3, 5, 7, 8, 10], // Natural Minor
+                'pentatonic_major': [0, 2, 4, 7, 9],
+                'pentatonic_minor': [0, 3, 5, 7, 10],
+                'blues': [0, 3, 5, 6, 7, 10],
+                'chromatic': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+            };
 
-      const SCALES = {
-        'major': [0, 2, 4, 5, 7, 9, 11],
-        'minor': [0, 2, 3, 5, 7, 8, 10], // Natural Minor
-        'pentatonic_major': [0, 2, 4, 7, 9],
-        'pentatonic_minor': [0, 3, 5, 7, 10],
-        'blues': [0, 3, 5, 6, 7, 10],
-        'chromatic': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-      };
-
-      function getNoteIndexFromFreq(freq) {
-        if (!freq) return 0;
-        const midi = Math.round(69 + 12 * Math.log2(freq / 440));
-        return (midi % 12 + 12) % 12; // Ensure positive 0-11
-      }
-
-      function getNoteFromFreq(freq) {
-        if (!freq) return "A4";
-        const midi = Math.round(69 + 12 * Math.log2(freq / 440));
-        const octave = Math.floor(midi / 12) - 1;
-        const noteIndex = (midi % 12 + 12) % 12;
-        return NOTE_NAMES[noteIndex] + octave;
-      }
-
-      function getFreqFromNote(noteStr) {
-        let cleanStr = noteStr.trim().toUpperCase().replace('DB', 'C#').replace('EB', 'D#').replace('GB', 'F#').replace('AB', 'G#').replace('BB', 'A#');
-
-        const match = cleanStr.match(/^([A-G][#]?)(-?\d+)$/);
-        if (!match) return null;
-
-        const noteName = match[1];
-        const octave = parseInt(match[2]);
-
-        const noteIndex = NOTE_NAMES.indexOf(noteName);
-        if (noteIndex === -1) return null;
-
-        const midi = (octave + 1) * 12 + noteIndex;
-        return 440 * Math.pow(2, (midi - 69) / 12);
-      }
-
-      // --- Configuration & Defaults ---
-      const tunings = {
-        "4": [41.20, 55.00, 73.42, 98.00],
-        "5": [30.87, 41.20, 55.00, 73.42, 98.00],
-        "6-bass": [30.87, 41.20, 55.00, 73.42, 98.00, 130.81],
-        "6": [82.41, 110.00, 146.83, 196.00, 246.94, 329.63],
-        "7": [61.74, 82.41, 110.00, 146.83, 196.00, 246.94, 329.63],
-        "8": [46.25, 61.74, 82.41, 110.00, 146.83, 196.00, 246.94, 329.63],
-        "9": [34.65, 46.25, 61.74, 82.41, 110.00, 146.83, 196.00, 246.94, 329.63]
-      };
-
-      const config = {
-        neckLength: 55,
-        neckDepth: 1,
-        bevelThickness: 0.2,
-        scaleLength: 65,
-        fretCount: 24,
-        stringCount: 6,
-        fretHeight: 0.15,
-        inlayFrets: [3, 5, 7, 9, 12, 15, 17, 19, 21, 24],
-        tuning: [...tunings["6"]]
-      };
-
-      const boardSurfaceY = config.neckDepth + config.bevelThickness;
-      // String height is ~0.4 above board surface.
-      // We want markers above strings.
-      // String Top ~ 0.4 + 0.08 (thickness) = 0.48.
-      // Let's put markers at 0.55.
-      const markerSurfaceY = boardSurfaceY + 0.55;
-
-      // --- Scene Setup ---
-      const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x1a1a1a);
-      scene.fog = new THREE.Fog(0x1a1a1a, 20, 100);
-
-      const nutZ = -config.neckLength / 2;
-      const dist1 = config.scaleLength - (config.scaleLength / Math.pow(2, 1 / 12));
-      const zPos1 = nutZ + dist1;
-
-      const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-      const renderer = new THREE.WebGLRenderer({ antialias: true });
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-      document.body.appendChild(renderer.domElement);
-
-      const controls = new OrbitControls(camera, renderer.domElement);
-      controls.enableDamping = true;
-      controls.dampingFactor = 0.05;
-      controls.maxDistance = 100;
-      controls.minDistance = 5;
-
-      // --- Lighting ---
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-      scene.add(ambientLight);
-
-      const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
-      dirLight.position.set(10, 20, 10);
-      dirLight.castShadow = true;
-      dirLight.shadow.mapSize.width = 2048;
-      dirLight.shadow.mapSize.height = 2048;
-      scene.add(dirLight);
-
-      const spotLight = new THREE.SpotLight(0xffaa00, 200);
-      spotLight.position.set(-20, 10, 0);
-      spotLight.angle = Math.PI / 6;
-      spotLight.penumbra = 1;
-      scene.add(spotLight);
-
-      // --- Global Groups ---
-      const neckGroup = new THREE.Group();
-      neckGroup.rotation.y = Math.PI;
-      scene.add(neckGroup);
-
-      let strings = [];
-      let fretPositions = [];
-      let stringGroup;
-      let scaleGroup = new THREE.Group();
-      neckGroup.add(scaleGroup);
-
-      // --- Materials ---
-      const woodMaterial = new THREE.MeshStandardMaterial({ color: 0x5c3a21, roughness: 0.6, metalness: 0.1 });
-      const fretMaterial = new THREE.MeshStandardMaterial({ color: 0xc0c0c0, metalness: 0.9, roughness: 0.2 });
-      const inlayMaterial = new THREE.MeshBasicMaterial({ color: 0xffffee });
-      const nutMaterial = new THREE.MeshStandardMaterial({ color: 0xffffee });
-      const stringMaterialBase = new THREE.MeshStandardMaterial({ color: 0xcd7f32, metalness: 0.8, roughness: 0.3 });
-      const stringMaterialSilver = new THREE.MeshStandardMaterial({ color: 0xeeeeee, metalness: 0.9, roughness: 0.2 });
-      const hitboxMaterial = new THREE.MeshBasicMaterial({ visible: true, transparent: true, opacity: 0, depthWrite: false });
-
-      // --- Texture Generation for Note Labels ---
-      const noteTextureCache = {};
-
-      function getNoteTexture(noteName, isRoot) {
-        const key = noteName + (isRoot ? '_root' : '_scale');
-        if (noteTextureCache[key]) return noteTextureCache[key];
-
-        const canvas = document.createElement('canvas');
-        canvas.width = 128;
-        canvas.height = 128;
-        const ctx = canvas.getContext('2d');
-
-        // Background Circle
-        ctx.beginPath();
-        ctx.arc(64, 64, 60, 0, Math.PI * 2);
-        ctx.fillStyle = isRoot ? '#ff6600' : '#ffcc00'; // Orange for Root, Yellow for Scale
-        ctx.fill();
-
-        // Text
-        ctx.font = 'bold 60px Arial';
-        ctx.fillStyle = '#000000';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(noteName, 64, 64);
-
-        const texture = new THREE.CanvasTexture(canvas);
-        noteTextureCache[key] = texture;
-        return texture;
-      }
-
-      // --- Audio Context ---
-      let audioCtx;
-      function initAudio() {
-        if (!audioCtx) {
-          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
-        if (audioCtx.state === 'suspended') {
-          audioCtx.resume();
-        }
-      }
-
-      // --- Scale Visualization Logic ---
-      function updateScaleVisualization() {
-        while (scaleGroup.children.length > 0) {
-          const child = scaleGroup.children[0];
-          if (child.geometry) child.geometry.dispose();
-          scaleGroup.remove(child);
-        }
-
-        const rootSelect = document.getElementById('scale-root');
-        const typeSelect = document.getElementById('scale-type');
-
-        const rootIndex = parseInt(rootSelect.value);
-        const scaleType = typeSelect.value;
-
-        if (scaleType === 'none' || rootIndex === -1) return;
-
-        const scaleIntervals = SCALES[scaleType];
-        const neckLen = config.neckLength;
-
-        for (let s = 0; s < strings.length; s++) {
-          const stringMesh = strings[s];
-          const baseFreq = stringMesh.userData.frequency;
-          const baseNoteIndex = getNoteIndexFromFreq(baseFreq);
-
-          const xNut = stringMesh.userData.xNut;
-          const xBridge = stringMesh.userData.xBridge;
-
-          // Loop frets 0 to 24
-          for (let f = 0; f <= config.fretCount; f++) {
-            const currentNoteIndex = (baseNoteIndex + f) % 12;
-            let interval = (currentNoteIndex - rootIndex + 12) % 12;
-
-            if (scaleIntervals.includes(interval)) {
-              const isRoot = interval === 0;
-              const noteName = NOTE_NAMES[currentNoteIndex];
-
-              let zPos, t; // t is 0 at nut, 1 at bridge
-
-              if (f === 0) {
-                zPos = nutZ - 0.7; // Behind nut
-                t = 0;
-              } else {
-                const currentFretZ = fretPositions[f];
-                const prevFretZ = fretPositions[f - 1];
-                zPos = (currentFretZ + prevFretZ) / 2;
-                t = (zPos - nutZ) / neckLen;
-              }
-
-              // Interpolate X position
-              const xPos = xNut + (xBridge - xNut) * t;
-
-              const geometry = new THREE.PlaneGeometry(0.7, 0.7);
-              const material = new THREE.MeshBasicMaterial({
-                map: getNoteTexture(noteName, isRoot),
-                transparent: true,
-                side: THREE.DoubleSide
-              });
-              const marker = new THREE.Mesh(geometry, material);
-
-              // Place marker ABOVE strings
-              marker.position.set(xPos, markerSurfaceY, zPos);
-              marker.rotation.x = -Math.PI / 2;
-
-              // Store data to make it playable
-              marker.userData = {
-                isMarker: true,
-                stringIndex: s,
-                fretIndex: f,
-                noteName: noteName
-              };
-
-              scaleGroup.add(marker);
+            function getNoteIndexFromFreq(freq) {
+                if(!freq) return 0;
+                const midi = Math.round(69 + 12 * Math.log2(freq / 440));
+                return (midi % 12 + 12) % 12; // Ensure positive 0-11
             }
-          }
-        }
-      }
 
-      // --- Tuning UI Builder ---
-      function updateTuningUI() {
-        const container = document.getElementById('tuning-container');
-        container.innerHTML = '';
-
-        for (let i = 0; i < config.stringCount; i++) {
-          const row = document.createElement('div');
-          row.className = 'tuning-row';
-
-          const label = document.createElement('span');
-          label.className = 'tuning-label';
-          label.innerText = `String ${i + 1}`;
-
-          const input = document.createElement('input');
-          input.className = 'tuning-input';
-          input.type = 'text';
-          input.value = getNoteFromFreq(config.tuning[i]);
-
-          input.addEventListener('change', (e) => {
-            const newNote = e.target.value;
-            const newFreq = getFreqFromNote(newNote);
-
-            if (newFreq) {
-              config.tuning[i] = newFreq;
-              if (strings[i]) {
-                strings[i].userData.frequency = newFreq;
-              }
-              input.style.borderColor = '#444';
-              updateScaleVisualization(); // Update scales immediately
-            } else {
-              input.style.borderColor = 'red';
+            function getNoteFromFreq(freq) {
+                if(!freq) return "A4";
+                const midi = Math.round(69 + 12 * Math.log2(freq / 440));
+                const octave = Math.floor(midi / 12) - 1;
+                const noteIndex = (midi % 12 + 12) % 12;
+                return NOTE_NAMES[noteIndex] + octave;
             }
-          });
 
-          row.appendChild(label);
-          row.appendChild(input);
-          container.appendChild(row);
-        }
-      }
+            function getFreqFromNote(noteStr) {
+                let cleanStr = noteStr.trim().toUpperCase().replace('DB', 'C#').replace('EB', 'D#').replace('GB', 'F#').replace('AB', 'G#').replace('BB', 'A#');
+                
+                const match = cleanStr.match(/^([A-G][#]?)(-?\d+)$/);
+                if (!match) return null;
+                
+                const noteName = match[1];
+                const octave = parseInt(match[2]);
+                
+                const noteIndex = NOTE_NAMES.indexOf(noteName);
+                if (noteIndex === -1) return null;
 
-      // --- Main Build Function ---
-      function buildGuitar() {
-        // Clear existing geometry
-        while (neckGroup.children.length > 0) {
-          const child = neckGroup.children[0];
-          if (child === scaleGroup) {
-            neckGroup.remove(child); // Temporarily remove scaleGroup to re-add later
-            continue;
-          }
-          if (child.geometry) child.geometry.dispose();
-          neckGroup.remove(child);
-        }
-
-        // Re-add scale group
-        neckGroup.add(scaleGroup);
-
-        strings = [];
-        fretPositions = [nutZ]; // Index 0 is Nut Position
-
-        const nutWidth = 1.5 + (config.stringCount - 1) * 0.8;
-        const bridgeWidth = 2.0 + (config.stringCount - 1) * 1.0;
-
-        // Neck
-        const neckShape = new THREE.Shape();
-        const length = config.neckLength;
-        neckShape.moveTo(-nutWidth / 2, -length / 2);
-        neckShape.lineTo(nutWidth / 2, -length / 2);
-        neckShape.lineTo(bridgeWidth / 2, length / 2);
-        neckShape.lineTo(-bridgeWidth / 2, length / 2);
-        neckShape.lineTo(-nutWidth / 2, -length / 2);
-
-        const extrudeSettings = { steps: 1, depth: config.neckDepth, bevelEnabled: true, bevelThickness: config.bevelThickness, bevelSize: 0.2, bevelSegments: 3 };
-        const neckGeo = new THREE.ExtrudeGeometry(neckShape, extrudeSettings);
-        const neckMesh = new THREE.Mesh(neckGeo, woodMaterial);
-        neckMesh.rotation.x = -Math.PI / 2;
-        neckMesh.castShadow = true;
-        neckMesh.receiveShadow = true;
-        neckGroup.add(neckMesh);
-
-        // Frets
-        for (let i = 1; i <= config.fretCount; i++) {
-          const distanceFromNut = config.scaleLength - (config.scaleLength / Math.pow(2, i / 12));
-          const zPos = nutZ + distanceFromNut;
-          fretPositions.push(zPos);
-
-          const currentWidth = nutWidth + (bridgeWidth - nutWidth) * (distanceFromNut / config.neckLength);
-          const fretGeo = new THREE.CylinderGeometry(0.08, 0.08, currentWidth + 0.2, 8);
-          const fret = new THREE.Mesh(fretGeo, fretMaterial);
-          fret.rotation.z = Math.PI / 2;
-          fret.position.set(0, boardSurfaceY + 0.06, zPos);
-          fret.castShadow = true;
-          neckGroup.add(fret);
-
-          if (config.inlayFrets.includes(i)) {
-            const prevDist = config.scaleLength - (config.scaleLength / Math.pow(2, (i - 1) / 12));
-            const inlayZ = nutZ + (distanceFromNut + prevDist) / 2;
-            const inlayGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.05, 16);
-
-            if (i === 12 || i === 24) {
-              const i1 = new THREE.Mesh(inlayGeo, inlayMaterial);
-              i1.position.set(-1.5, boardSurfaceY + 0.01, inlayZ);
-              const i2 = new THREE.Mesh(inlayGeo, inlayMaterial);
-              i2.position.set(1.5, boardSurfaceY + 0.01, inlayZ);
-              neckGroup.add(i1);
-              neckGroup.add(i2);
-            } else {
-              const inlay = new THREE.Mesh(inlayGeo, inlayMaterial);
-              inlay.position.set(0, boardSurfaceY + 0.01, inlayZ);
-              neckGroup.add(inlay);
+                const midi = (octave + 1) * 12 + noteIndex;
+                return 440 * Math.pow(2, (midi - 69) / 12);
             }
-          }
-        }
 
-        // Nut
-        const nutGeo = new THREE.BoxGeometry(nutWidth, 0.6, 0.5);
-        const nut = new THREE.Mesh(nutGeo, nutMaterial);
-        nut.position.set(0, boardSurfaceY + 0.3, nutZ);
-        neckGroup.add(nut);
-
-        // Strings
-        stringGroup = new THREE.Group();
-        neckGroup.add(stringGroup);
-
-        const stringHeight = boardSurfaceY + 0.4;
-
-        for (let i = 0; i < config.stringCount; i++) {
-          const totalStringWidthNut = nutWidth - 0.5;
-          const startXNut = -totalStringWidthNut / 2;
-          const spacingNut = totalStringWidthNut / (config.stringCount - 1);
-          const xNut = startXNut + (i * spacingNut);
-
-          const totalStringWidthBridge = bridgeWidth - 1;
-          const startXBridge = -totalStringWidthBridge / 2;
-          const spacingBridge = totalStringWidthBridge / (config.stringCount - 1);
-          const xBridge = startXBridge + (i * spacingBridge);
-
-          const path = new THREE.LineCurve3(
-            new THREE.Vector3(xNut, stringHeight, nutZ),
-            new THREE.Vector3(xBridge, stringHeight, config.neckLength / 2)
-          );
-
-          const thickness = 0.09 - (i * (0.07 / config.stringCount));
-          const geometry = new THREE.TubeGeometry(path, 4, thickness, 8, false);
-
-          const isBass = config.tuning[0] < 80;
-          let mat = stringMaterialSilver;
-          if (isBass) {
-            mat = stringMaterialBase;
-          } else {
-            if (i < config.stringCount - 3) mat = stringMaterialBase;
-          }
-
-          const mesh = new THREE.Mesh(geometry, mat.clone());
-          mesh.castShadow = true;
-
-          mesh.userData = {
-            id: i,
-            isString: true,
-            frequency: config.tuning[i] || 440,
-            vibrating: false,
-            vibrationTime: 0,
-            xNut: xNut,
-            xBridge: xBridge
-          };
-
-          const hitboxGeometry = new THREE.TubeGeometry(path, 1, 0.5, 4, false);
-          const hitboxMesh = new THREE.Mesh(hitboxGeometry, hitboxMaterial);
-          hitboxMesh.userData = { isHitbox: true, targetString: mesh };
-
-          strings.push(mesh);
-          stringGroup.add(mesh);
-          stringGroup.add(hitboxMesh);
-        }
-
-        updateTuningUI();
-        updateScaleVisualization();
-      }
-
-      // --- Event Listeners & UI ---
-      function setupAccordions() {
-        const acc = document.getElementsByClassName("accordion-header");
-        for (let i = 0; i < acc.length; i++) {
-          acc[i].addEventListener("click", function () {
-            this.classList.toggle("active");
-            const panel = this.nextElementSibling;
-            const arrow = this.querySelector(".arrow");
-
-            panel.classList.toggle("open");
-            arrow.innerText = panel.classList.contains("open") ? "▲" : "▼";
-          });
-        }
-      }
-      setupAccordions();
-
-      const stringSelect = document.getElementById('string-select');
-      stringSelect.addEventListener('change', (e) => {
-        const val = e.target.value;
-        const count = parseInt(val);
-        config.stringCount = count;
-        const baseTuning = tunings[val] || tunings[count.toString()];
-        config.tuning = [...baseTuning];
-        buildGuitar();
-      });
-
-      document.getElementById('scale-root').addEventListener('change', updateScaleVisualization);
-      document.getElementById('scale-type').addEventListener('change', updateScaleVisualization);
-
-      // --- Interaction ---
-      const raycaster = new THREE.Raycaster();
-      const pointer = new THREE.Vector2();
-
-      function playString(stringMesh, fretIndex = 0) {
-        initAudio();
-
-        const osc = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-
-        const frequency = stringMesh.userData.frequency * Math.pow(2, fretIndex / 12);
-
-        osc.type = frequency < 100 ? 'sawtooth' : 'triangle';
-        osc.frequency.setValueAtTime(frequency, audioCtx.currentTime);
-
-        gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
-        gainNode.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.5);
-
-        const filter = audioCtx.createBiquadFilter();
-        filter.type = "lowpass";
-        filter.frequency.value = 2000;
-
-        osc.connect(filter);
-        filter.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-
-        osc.start();
-        osc.stop(audioCtx.currentTime + 1.5);
-
-        stringMesh.userData.vibrating = true;
-        stringMesh.userData.vibrationTime = 0;
-        stringMesh.material.emissive.setHex(0x0044ff);
-      }
-
-      function onPointerDown(event) {
-        if (event.target.tagName === 'SELECT' || event.target.tagName === 'INPUT' || event.target.closest('.accordion-header')) return;
-
-        pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
-        pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
-
-        raycaster.setFromCamera(pointer, camera);
-
-        // Raycast against strings AND scale markers
-        const objectsToTest = [...stringGroup.children, ...scaleGroup.children];
-        const intersects = raycaster.intersectObjects(objectsToTest);
-
-        if (intersects.length > 0) {
-          const intersect = intersects[0];
-          const object = intersect.object;
-
-          // Case 1: Clicked a Scale Marker
-          if (object.userData.isMarker) {
-            const sIndex = object.userData.stringIndex;
-            const fIndex = object.userData.fretIndex;
-            if (strings[sIndex]) {
-              playString(strings[sIndex], fIndex);
+            function getMidiFromFreq(freq) {
+                if (!freq) return 69; 
+                return Math.round(69 + 12 * Math.log2(freq / 440));
             }
-            return;
-          }
 
-          // Case 2: Clicked a String or Hitbox
-          const localPoint = neckGroup.worldToLocal(intersect.point.clone());
-          const clickZ = localPoint.z;
-
-          let fretIndex = 0;
-
-          if (clickZ <= nutZ + 0.5) {
-            fretIndex = 0;
-          } else {
-            for (let i = 0; i < fretPositions.length; i++) {
-              if (fretPositions[i] > clickZ) {
-                fretIndex = i;
-                break;
-              }
-              if (i === fretPositions.length - 1) {
-                fretIndex = i;
-              }
+            function getFreqFromMidi(midi) {
+                return 440 * Math.pow(2, (midi - 69) / 12);
             }
-          }
 
-          if (object.userData.isString) {
-            playString(object, fretIndex);
-          } else if (object.userData.isHitbox) {
-            playString(object.userData.targetString, fretIndex);
-          }
+            // --- Configuration & Defaults ---
+            const tunings = {
+                "4": [41.20, 55.00, 73.42, 98.00], 
+                "5": [30.87, 41.20, 55.00, 73.42, 98.00], 
+                "6-bass": [30.87, 41.20, 55.00, 73.42, 98.00, 130.81],
+                "6": [82.41, 110.00, 146.83, 196.00, 246.94, 329.63], 
+                "7": [61.74, 82.41, 110.00, 146.83, 196.00, 246.94, 329.63], 
+                "8": [46.25, 61.74, 82.41, 110.00, 146.83, 196.00, 246.94, 329.63], 
+                "9": [34.65, 46.25, 61.74, 82.41, 110.00, 146.83, 196.00, 246.94, 329.63]
+            };
+
+            const config = {
+                neckLength: 55, 
+                neckDepth: 1,
+                bevelThickness: 0.2,
+                scaleLength: 65,
+                fretCount: 24, 
+                stringCount: 6,
+                fretHeight: 0.15,
+                inlayFrets: [3, 5, 7, 9, 12, 15, 17, 19, 21, 24], 
+                tuning: [...tunings["6"]] 
+            };
+
+            const boardSurfaceY = config.neckDepth + config.bevelThickness;
+            // String height is ~0.4 above board surface.
+            // We want markers above strings. 
+            // String Top ~ 0.4 + 0.08 (thickness) = 0.48. 
+            // Let's put markers at 0.55.
+            const markerSurfaceY = boardSurfaceY + 0.55; 
+
+            // --- Scene Setup ---
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a1a);
+            scene.fog = new THREE.Fog(0x1a1a1a, 20, 100);
+
+            const nutZ = -config.neckLength / 2;
+            const dist1 = config.scaleLength - (config.scaleLength / Math.pow(2, 1 / 12));
+            const zPos1 = nutZ + dist1;
+
+            const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.body.appendChild(renderer.domElement);
+
+            const controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxDistance = 100;
+            controls.minDistance = 5;
+
+            // --- Lighting ---
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            dirLight.position.set(10, 20, 10);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            scene.add(dirLight);
+
+            const spotLight = new THREE.SpotLight(0xffaa00, 200);
+            spotLight.position.set(-20, 10, 0);
+            spotLight.angle = Math.PI / 6;
+            spotLight.penumbra = 1;
+            scene.add(spotLight);
+
+            // --- Global Groups ---
+            const neckGroup = new THREE.Group();
+            // Rotate 90 degrees (Math.PI/2).
+            // This aligns: Nut -> Left (-X), Body -> Right (+X)
+            // And puts Low E (Thick) -> Bottom (+Z), High E -> Top (-Z)
+            neckGroup.rotation.y = Math.PI / 2;
+            neckGroup.rotation.x = 0.2 * Math.PI;
+            scene.add(neckGroup);
+            
+            let strings = [];
+            let fretPositions = [];
+            let stringGroup; 
+            let scaleGroup = new THREE.Group();
+            neckGroup.add(scaleGroup);
+
+            // --- Materials ---
+            const woodMaterial = new THREE.MeshStandardMaterial({ color: 0x5c3a21, roughness: 0.6, metalness: 0.1 });
+            const fretMaterial = new THREE.MeshStandardMaterial({ color: 0xc0c0c0, metalness: 0.9, roughness: 0.2 });
+            const inlayMaterial = new THREE.MeshBasicMaterial({ color: 0xffffee });
+            const nutMaterial = new THREE.MeshStandardMaterial({ color: 0xffffee });
+            const stringMaterialBase = new THREE.MeshStandardMaterial({ color: 0xcd7f32, metalness: 0.8, roughness: 0.3 });
+            const stringMaterialSilver = new THREE.MeshStandardMaterial({ color: 0xeeeeee, metalness: 0.9, roughness: 0.2 });
+            const hitboxMaterial = new THREE.MeshBasicMaterial({ visible: true, transparent: true, opacity: 0, depthWrite: false });
+
+            // --- Texture Generation for Note Labels ---
+            const noteTextureCache = {};
+            
+            function getNoteTexture(noteName, style) { // style: 'root', 'scale', 'neutral'
+                const key = noteName + '_' + style;
+                if(noteTextureCache[key]) return noteTextureCache[key];
+
+                const canvas = document.createElement('canvas');
+                canvas.width = 128;
+                canvas.height = 128;
+                const ctx = canvas.getContext('2d');
+
+                // Background Circle
+                ctx.beginPath();
+                ctx.arc(64, 64, 60, 0, Math.PI * 2);
+                
+                if (style === 'root') {
+                    ctx.fillStyle = '#ff6600'; // Orange
+                } else if (style === 'scale') {
+                    ctx.fillStyle = '#ffcc00'; // Yellow
+                } else {
+                    ctx.fillStyle = '#bbbbbb'; // Grey (Neutral)
+                }
+                
+                ctx.fill();
+                
+                // Text
+                ctx.font = 'bold 60px Arial';
+                ctx.fillStyle = '#000000';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(noteName, 64, 64);
+
+                const texture = new THREE.CanvasTexture(canvas);
+                noteTextureCache[key] = texture;
+                return texture;
+            }
+
+            // --- Audio Context ---
+            let audioCtx;
+            function initAudio() {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+            }
+
+            // --- Scale Visualization Logic ---
+            function updateScaleVisualization() {
+                while(scaleGroup.children.length > 0) {
+                    const child = scaleGroup.children[0];
+                    if(child.geometry) child.geometry.dispose();
+                    scaleGroup.remove(child);
+                }
+
+                const rootSelect = document.getElementById('scale-root');
+                const typeSelect = document.getElementById('scale-type');
+                
+                const rootIndex = parseInt(rootSelect.value);
+                const scaleType = typeSelect.value;
+                
+                // Determine if a scale is active
+                const activeScale = (scaleType !== 'none' && rootIndex !== -1);
+                const scaleIntervals = activeScale ? SCALES[scaleType] : [];
+                const neckLen = config.neckLength;
+                
+                for (let s = 0; s < strings.length; s++) {
+                    const stringMesh = strings[s];
+                    const baseFreq = stringMesh.userData.frequency;
+                    const baseNoteIndex = getNoteIndexFromFreq(baseFreq); 
+                    
+                    const xNut = stringMesh.userData.xNut;
+                    const xBridge = stringMesh.userData.xBridge;
+
+                    // Loop frets 0 to 24
+                    for (let f = 0; f <= config.fretCount; f++) {
+                        const currentNoteIndex = (baseNoteIndex + f) % 12;
+                        
+                        // Default state
+                        let shouldDraw = false;
+                        let style = 'scale'; // Default yellow
+                        let isRoot = false;
+
+                        // Logic for Fret 0 (Open String) - ALWAYS VISIBLE
+                        if (f === 0) {
+                            shouldDraw = true;
+                            if (activeScale) {
+                                // Calculate interval relative to scale root
+                                let interval = (currentNoteIndex - rootIndex + 12) % 12;
+                                if (scaleIntervals.includes(interval)) {
+                                    style = (interval === 0) ? 'root' : 'scale';
+                                } else {
+                                    style = 'neutral'; // Grey if not in scale
+                                }
+                            } else {
+                                style = 'scale'; // Default yellow when no scale selected
+                            }
+                        } 
+                        // Logic for Frets 1-24
+                        else if (activeScale) {
+                            let interval = (currentNoteIndex - rootIndex + 12) % 12;
+                            if (scaleIntervals.includes(interval)) {
+                                shouldDraw = true;
+                                style = (interval === 0) ? 'root' : 'scale';
+                            }
+                        }
+
+                        if (shouldDraw) {
+                            const noteName = NOTE_NAMES[currentNoteIndex];
+                            
+                            let zPos, t; // t is 0 at nut, 1 at bridge
+                            
+                            if (f === 0) {
+                                zPos = nutZ - 0.7; // Behind nut
+                                t = 0;
+                            } else {
+                                const currentFretZ = fretPositions[f]; 
+                                const prevFretZ = fretPositions[f-1]; 
+                                zPos = (currentFretZ + prevFretZ) / 2;
+                                t = (zPos - nutZ) / neckLen;
+                            }
+
+                            // Interpolate X position
+                            const xPos = xNut + (xBridge - xNut) * t;
+
+                            const geometry = new THREE.PlaneGeometry(0.7, 0.7);
+                            const material = new THREE.MeshBasicMaterial({ 
+                                map: getNoteTexture(noteName, style),
+                                transparent: true,
+                                side: THREE.DoubleSide
+                            });
+                            const marker = new THREE.Mesh(geometry, material);
+                            
+                            // Place marker ABOVE strings
+                            marker.position.set(xPos, markerSurfaceY, zPos);
+                            marker.rotation.x = -Math.PI / 2;
+                            
+                            // Store data to make it playable
+                            marker.userData = {
+                                isMarker: true,
+                                stringIndex: s,
+                                fretIndex: f,
+                                noteName: noteName
+                            };
+                            
+                            scaleGroup.add(marker);
+                        }
+                    }
+                }
+            }
+
+            // --- Tuning UI Builder ---
+            function updateTuningUI() {
+                const container = document.getElementById('tuning-container');
+                container.innerHTML = ''; 
+
+                for(let i = 0; i < config.stringCount; i++) {
+                    const row = document.createElement('div');
+                    row.className = 'tuning-row';
+
+                    const label = document.createElement('span');
+                    label.className = 'tuning-label';
+                    label.innerText = `String ${i + 1}`;
+                    
+                    // Controls Container
+                    const ctrlDiv = document.createElement('div');
+                    ctrlDiv.style.display = 'flex';
+                    ctrlDiv.style.alignItems = 'center';
+                    ctrlDiv.style.gap = '4px';
+
+                    // Minus Button
+                    const btnDown = document.createElement('button');
+                    btnDown.innerText = '-';
+                    btnDown.className = 'tuning-btn';
+
+                    // Input
+                    const input = document.createElement('input');
+                    input.className = 'tuning-input';
+                    input.type = 'text';
+                    input.value = getNoteFromFreq(config.tuning[i]);
+                    
+                    // Plus Button
+                    const btnUp = document.createElement('button');
+                    btnUp.innerText = '+';
+                    btnUp.className = 'tuning-btn';
+
+                    // Shared update logic
+                    const applyFrequency = (newFreq) => {
+                        config.tuning[i] = newFreq;
+                        if(strings[i]) {
+                            strings[i].userData.frequency = newFreq;
+                        }
+                        input.value = getNoteFromFreq(newFreq);
+                        input.style.borderColor = '#444';
+                        updateScaleVisualization();
+                    };
+
+                    btnDown.onclick = () => {
+                        const currentMidi = getMidiFromFreq(config.tuning[i]);
+                        applyFrequency(getFreqFromMidi(currentMidi - 1));
+                    };
+
+                    btnUp.onclick = () => {
+                        const currentMidi = getMidiFromFreq(config.tuning[i]);
+                        applyFrequency(getFreqFromMidi(currentMidi + 1));
+                    };
+
+                    input.addEventListener('change', (e) => {
+                        const newNote = e.target.value;
+                        const newFreq = getFreqFromNote(newNote);
+                        
+                        if(newFreq) {
+                            applyFrequency(newFreq);
+                        } else {
+                            input.style.borderColor = 'red';
+                        }
+                    });
+
+                    ctrlDiv.appendChild(btnDown);
+                    ctrlDiv.appendChild(input);
+                    ctrlDiv.appendChild(btnUp);
+
+                    row.appendChild(label);
+                    row.appendChild(ctrlDiv);
+                    container.appendChild(row);
+                }
+            }
+
+            // --- Main Build Function ---
+            function buildGuitar() {
+                // Clear existing geometry
+                while(neckGroup.children.length > 0){ 
+                    const child = neckGroup.children[0];
+                    if(child === scaleGroup) {
+                         neckGroup.remove(child); // Temporarily remove scaleGroup to re-add later
+                         continue;
+                    }
+                    if(child.geometry) child.geometry.dispose();
+                    neckGroup.remove(child); 
+                }
+                
+                // Re-add scale group
+                neckGroup.add(scaleGroup);
+                
+                strings = [];
+                fretPositions = [nutZ]; // Index 0 is Nut Position
+
+                const nutWidth = 1.5 + (config.stringCount - 1) * 0.8; 
+                const bridgeWidth = 2.0 + (config.stringCount - 1) * 1.0; 
+
+                // Neck
+                const neckShape = new THREE.Shape();
+                const length = config.neckLength;
+                neckShape.moveTo(-nutWidth/2, -length/2);
+                neckShape.lineTo(nutWidth/2, -length/2);
+                neckShape.lineTo(bridgeWidth/2, length/2);
+                neckShape.lineTo(-bridgeWidth/2, length/2);
+                neckShape.lineTo(-nutWidth/2, -length/2);
+
+                const extrudeSettings = { steps: 1, depth: config.neckDepth, bevelEnabled: true, bevelThickness: config.bevelThickness, bevelSize: 0.2, bevelSegments: 3 };
+                const neckGeo = new THREE.ExtrudeGeometry(neckShape, extrudeSettings);
+                const neckMesh = new THREE.Mesh(neckGeo, woodMaterial);
+                neckMesh.rotation.x = -Math.PI / 2;
+                neckMesh.castShadow = true;
+                neckMesh.receiveShadow = true;
+                neckGroup.add(neckMesh);
+
+                // Frets
+                for (let i = 1; i <= config.fretCount; i++) {
+                    const distanceFromNut = config.scaleLength - (config.scaleLength / Math.pow(2, i / 12));
+                    const zPos = nutZ + distanceFromNut;
+                    fretPositions.push(zPos);
+
+                    const currentWidth = nutWidth + (bridgeWidth - nutWidth) * (distanceFromNut / config.neckLength);
+                    const fretGeo = new THREE.CylinderGeometry(0.08, 0.08, currentWidth + 0.2, 8);
+                    const fret = new THREE.Mesh(fretGeo, fretMaterial);
+                    fret.rotation.z = Math.PI / 2;
+                    fret.position.set(0, boardSurfaceY + 0.06, zPos);
+                    fret.castShadow = true;
+                    neckGroup.add(fret);
+
+                    if (config.inlayFrets.includes(i)) {
+                        const prevDist = config.scaleLength - (config.scaleLength / Math.pow(2, (i - 1) / 12));
+                        const inlayZ = nutZ + (distanceFromNut + prevDist) / 2;
+                        const inlayGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.05, 16);
+                        
+                        if (i === 12 || i === 24) {
+                            const i1 = new THREE.Mesh(inlayGeo, inlayMaterial);
+                            i1.position.set(-1.5, boardSurfaceY + 0.01, inlayZ);
+                            const i2 = new THREE.Mesh(inlayGeo, inlayMaterial);
+                            i2.position.set(1.5, boardSurfaceY + 0.01, inlayZ);
+                            neckGroup.add(i1);
+                            neckGroup.add(i2);
+                        } else {
+                            const inlay = new THREE.Mesh(inlayGeo, inlayMaterial);
+                            inlay.position.set(0, boardSurfaceY + 0.01, inlayZ);
+                            neckGroup.add(inlay);
+                        }
+                    }
+                }
+
+                // Nut
+                const nutGeo = new THREE.BoxGeometry(nutWidth, 0.6, 0.5);
+                const nut = new THREE.Mesh(nutGeo, nutMaterial);
+                nut.position.set(0, boardSurfaceY + 0.3, nutZ);
+                neckGroup.add(nut);
+
+                // Strings
+                stringGroup = new THREE.Group();
+                neckGroup.add(stringGroup);
+
+                const stringHeight = boardSurfaceY + 0.4;
+
+                for (let i = 0; i < config.stringCount; i++) {
+                    const totalStringWidthNut = nutWidth - 0.5;
+                    const startXNut = -totalStringWidthNut / 2;
+                    const spacingNut = totalStringWidthNut / (config.stringCount - 1);
+                    const xNut = startXNut + (i * spacingNut);
+
+                    const totalStringWidthBridge = bridgeWidth - 1;
+                    const startXBridge = -totalStringWidthBridge / 2;
+                    const spacingBridge = totalStringWidthBridge / (config.stringCount - 1);
+                    const xBridge = startXBridge + (i * spacingBridge);
+
+                    const path = new THREE.LineCurve3(
+                        new THREE.Vector3(xNut, stringHeight, nutZ),
+                        new THREE.Vector3(xBridge, stringHeight, config.neckLength/2)
+                    );
+                    
+                    const thickness = 0.09 - (i * (0.07 / config.stringCount)); 
+                    const geometry = new THREE.TubeGeometry(path, 4, thickness, 8, false);
+                    
+                    const isBass = config.tuning[0] < 80;
+                    let mat = stringMaterialSilver;
+                    if (isBass) {
+                        mat = stringMaterialBase;
+                    } else {
+                        if (i < config.stringCount - 3) mat = stringMaterialBase; 
+                    }
+
+                    const mesh = new THREE.Mesh(geometry, mat.clone());
+                    mesh.castShadow = true;
+                    
+                    mesh.userData = {
+                        id: i,
+                        isString: true,
+                        frequency: config.tuning[i] || 440,
+                        vibrating: false,
+                        vibrationTime: 0,
+                        xNut: xNut,
+                        xBridge: xBridge
+                    };
+
+                    const hitboxGeometry = new THREE.TubeGeometry(path, 1, 0.5, 4, false);
+                    const hitboxMesh = new THREE.Mesh(hitboxGeometry, hitboxMaterial);
+                    hitboxMesh.userData = { isHitbox: true, targetString: mesh };
+
+                    strings.push(mesh);
+                    stringGroup.add(mesh);
+                    stringGroup.add(hitboxMesh);
+                }
+
+                updateTuningUI();
+                updateScaleVisualization();
+            }
+
+            // --- Event Listeners & UI ---
+            function setupAccordions() {
+                const acc = document.getElementsByClassName("accordion-header");
+                for (let i = 0; i < acc.length; i++) {
+                    acc[i].addEventListener("click", function() {
+                        this.classList.toggle("active");
+                        const panel = this.nextElementSibling;
+                        const arrow = this.querySelector(".arrow");
+                        
+                        panel.classList.toggle("open");
+                        arrow.innerText = panel.classList.contains("open") ? "▲" : "▼";
+                    });
+                }
+            }
+            setupAccordions();
+
+            const stringSelect = document.getElementById('string-select');
+            stringSelect.addEventListener('change', (e) => {
+                const val = e.target.value;
+                const count = parseInt(val);
+                config.stringCount = count;
+                const baseTuning = tunings[val] || tunings[count.toString()];
+                config.tuning = [...baseTuning]; 
+                buildGuitar();
+            });
+
+            document.getElementById('scale-root').addEventListener('change', updateScaleVisualization);
+            document.getElementById('scale-type').addEventListener('change', updateScaleVisualization);
+
+            // --- Interaction ---
+            const raycaster = new THREE.Raycaster();
+            const pointer = new THREE.Vector2();
+
+            function playString(stringMesh, fretIndex = 0) {
+                initAudio();
+
+                const osc = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                const frequency = stringMesh.userData.frequency * Math.pow(2, fretIndex / 12);
+
+                osc.type = frequency < 100 ? 'sawtooth' : 'triangle';
+                osc.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+                
+                gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05); 
+                gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.5);
+
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = "lowpass";
+                filter.frequency.value = 2000;
+                
+                osc.connect(filter);
+                filter.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + 1.5);
+
+                stringMesh.userData.vibrating = true;
+                stringMesh.userData.vibrationTime = 0;
+                stringMesh.material.emissive.setHex(0x0044ff);
+            }
+
+            function onPointerDown(event) {
+                if(event.target.tagName === 'SELECT' || event.target.tagName === 'INPUT' || event.target.closest('.accordion-header')) return;
+
+                pointer.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+                pointer.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+
+                raycaster.setFromCamera( pointer, camera );
+                
+                // Raycast against strings AND scale markers
+                const objectsToTest = [...stringGroup.children, ...scaleGroup.children];
+                const intersects = raycaster.intersectObjects( objectsToTest );
+
+                if ( intersects.length > 0 ) {
+                    const intersect = intersects[0];
+                    const object = intersect.object;
+                    
+                    // Case 1: Clicked a Scale Marker
+                    if (object.userData.isMarker) {
+                         const sIndex = object.userData.stringIndex;
+                         const fIndex = object.userData.fretIndex;
+                         if(strings[sIndex]) {
+                             playString(strings[sIndex], fIndex);
+                         }
+                         return;
+                    }
+
+                    // Case 2: Clicked a String or Hitbox
+                    const localPoint = neckGroup.worldToLocal(intersect.point.clone());
+                    const clickZ = localPoint.z;
+                    
+                    let fretIndex = 0;
+
+                    if (clickZ <= nutZ + 0.5) { 
+                        fretIndex = 0;
+                    } else {
+                        for (let i = 0; i < fretPositions.length; i++) {
+                            if (fretPositions[i] > clickZ) {
+                                fretIndex = i;
+                                break;
+                            }
+                            if (i === fretPositions.length - 1) {
+                                fretIndex = i;
+                            }
+                        }
+                    }
+
+                    if(object.userData.isString) {
+                        playString(object, fretIndex);
+                    } else if (object.userData.isHitbox) {
+                        playString(object.userData.targetString, fretIndex);
+                    }
+                }
+            }
+
+            window.addEventListener( 'pointerdown', onPointerDown );
+            window.addEventListener( 'resize', onWindowResize, false );
+
+            function onWindowResize() {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize( window.innerWidth, window.innerHeight );
+            }
+
+            // --- Initialization ---
+            neckGroup.updateMatrixWorld();
+            const targetLocal = new THREE.Vector3(0, 0, zPos1);
+            const targetWorld = targetLocal.clone().applyMatrix4(neckGroup.matrixWorld);
+            
+            // Camera Setup for Horizontal View
+            // Target is roughly at World X = -25 (Near Nut)
+            // We position camera 'front' (Z) and 'up' (Y) relative to the board center
+            camera.position.set(targetWorld.x, 25, targetWorld.z + 15); 
+            
+            // Look slightly below the camera position to center the board
+            camera.lookAt(targetWorld.x, 0, targetWorld.z);
+            controls.target.copy(targetWorld);
+            controls.update();
+
+            buildGuitar();
+            document.getElementById('loading').style.opacity = 0;
+
+            const clock = new THREE.Clock();
+            function animate() {
+                requestAnimationFrame( animate );
+                const delta = clock.getDelta();
+
+                if(strings && strings.length > 0) {
+                    strings.forEach(string => {
+                        if(string.material.emissive.r > 0 || string.material.emissive.b > 0) {
+                            string.material.emissive.lerp(new THREE.Color(0x000000), 0.1);
+                        }
+                        if(string.userData.vibrating) {
+                            string.userData.vibrationTime += delta;
+                            if(string.userData.vibrationTime < 0.5) {
+                                const intensity = (0.5 - string.userData.vibrationTime) * 0.1;
+                                // Oscillate around 0 (relative to parent string pos which is already at height)
+                                string.position.y = (Math.random() - 0.5) * intensity;
+                            } else {
+                                string.userData.vibrating = false;
+                                string.position.y = 0; 
+                            }
+                        }
+                    });
+                }
+                controls.update();
+                renderer.render( scene, camera );
+            }
+            animate();
+
+        } catch (err) {
+            console.error(err);
+            document.getElementById('loading').innerText = "Error Loading Engine";
+            const errDiv = document.getElementById('error-msg');
+            errDiv.style.display = 'block';
+            errDiv.innerText = err.message;
         }
-      }
-
-      window.addEventListener('pointerdown', onPointerDown);
-      window.addEventListener('resize', onWindowResize, false);
-
-      function onWindowResize() {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-      }
-
-      // --- Initialization ---
-      neckGroup.updateMatrixWorld();
-      const targetLocal = new THREE.Vector3(0, 0, zPos1);
-      const targetWorld = targetLocal.clone().applyMatrix4(neckGroup.matrixWorld);
-      camera.position.set(targetWorld.x, 25, targetWorld.z + 5);
-      camera.lookAt(targetWorld.x, 0, targetWorld.z);
-      controls.target.copy(targetWorld);
-      controls.update();
-
-      buildGuitar();
-      document.getElementById('loading').style.opacity = 0;
-
-      const clock = new THREE.Clock();
-      function animate() {
-        requestAnimationFrame(animate);
-        const delta = clock.getDelta();
-
-        if (strings && strings.length > 0) {
-          strings.forEach(string => {
-            if (string.material.emissive.r > 0 || string.material.emissive.b > 0) {
-              string.material.emissive.lerp(new THREE.Color(0x000000), 0.1);
-            }
-            if (string.userData.vibrating) {
-              string.userData.vibrationTime += delta;
-              if (string.userData.vibrationTime < 0.5) {
-                const intensity = (0.5 - string.userData.vibrationTime) * 0.1;
-                // Oscillate around 0 (relative to parent string pos which is already at height)
-                string.position.y = (Math.random() - 0.5) * intensity;
-              } else {
-                string.userData.vibrating = false;
-                string.position.y = 0;
-              }
-            }
-          });
-        }
-        controls.update();
-        renderer.render(scene, camera);
-      }
-      animate();
-
-    } catch (err) {
-      console.error(err);
-      document.getElementById('loading').innerText = "Error Loading Engine";
-      const errDiv = document.getElementById('error-msg');
-      errDiv.style.display = 'block';
-      errDiv.innerText = err.message;
-    }
-  </script>
+    </script>
 </body>
-
 </html>
