@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Circle of Fifths</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #111;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    #canvas-container {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
+
+    #loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-size: 1.5rem;
+      pointer-events: none;
+      transition: opacity 0.5s;
+    }
+
+    /* Info Panel (Bottom Left) */
+    #info-panel {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      color: rgba(255, 255, 255, 0.8);
+      background: rgba(0, 0, 0, 0.85);
+      padding: 15px;
+      border-radius: 8px;
+      backdrop-filter: blur(8px);
+      pointer-events: auto;
+      /* Allow button clicks */
+      max-width: 380px;
+      opacity: 0;
+      transition: opacity 0.3s;
+      border-left: 4px solid #fff;
+      user-select: none;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    #info-panel h1 {
+      margin: 0 0 10px 0;
+      font-size: 1.3rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      padding-bottom: 5px;
+    }
+
+    /* Chord Grid */
+    .chord-section {
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: #aaa;
+      margin-bottom: 5px;
+      letter-spacing: 1px;
+    }
+
+    /* Flex Grid */
+    .chord-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chord-btn {
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid transparent;
+      color: #eee;
+      padding: 4px 8px;
+      /* Compact padding */
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      text-align: center;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      flex: 0 0 auto;
+    }
+
+    .chord-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.6);
+      transform: translateY(-1px);
+    }
+
+    .chord-roman {
+      font-size: 0.75em;
+      color: #aaa;
+      font-weight: normal;
+      margin-top: 1px;
+    }
+
+    .chord-btn:hover .chord-roman {
+      color: #ddd;
+    }
+
+    /* Notes Display */
+    #note-display {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.2);
+      font-size: 0.9rem;
+      color: #fff;
+      min-height: 1.2em;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    /* Controls Panel (Top Left) */
+    #controls-panel {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .toggle-btn {
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+      backdrop-filter: blur(5px);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 160px;
+    }
+
+    .toggle-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: #fff;
+    }
+
+    .toggle-btn:active {
+      transform: translateY(1px);
+    }
+
+    .icon {
+      font-size: 1.1em;
+      font-weight: bold;
+      width: 20px;
+      text-align: center;
+    }
+
+    #info-panel::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    #info-panel::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.3);
+    }
+
+    #info-panel::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="loading">Loading 3D Assets...</div>
+  <div id="canvas-container"></div>
+
+  <!-- Top Left Controls -->
+  <div id="controls-panel">
+    <button id="enharmonic-btn" class="toggle-btn">
+      <span class="icon">♭</span> Switch to Flats
+    </button>
+    <button id="mode-btn" class="toggle-btn">
+      <span class="icon">m</span> Show Minors
+    </button>
+  </div>
+
+  <!-- Bottom Left Info -->
+  <div id="info-panel">
+    <!-- Content injected by JS -->
+  </div>
+
+  <!-- Import Map for Three.js -->
+  <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+    import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+
+    // --- Data ---
+    // Added chromatic index (C=0, C#=1 ... B=11) for interval calculation
+    const circleData = [
+      // C (Neutral)
+      {
+        id: 'C', chromatic: 0,
+        sharp: { major: 'C', minor: 'Am', dim: 'B°' },
+        flat: { major: 'C', minor: 'Am', dim: 'B°' }
+      },
+
+      // G (1#)
+      {
+        id: 'G', chromatic: 7,
+        sharp: { major: 'G', minor: 'Em', dim: 'F#°' },
+        flat: { major: 'G', minor: 'Em', dim: 'Gb°' }
+      },
+
+      // D (2#)
+      {
+        id: 'D', chromatic: 2,
+        sharp: { major: 'D', minor: 'Bm', dim: 'C#°' },
+        flat: { major: 'D', minor: 'Bm', dim: 'Db°' }
+      },
+
+      // A (3#)
+      {
+        id: 'A', chromatic: 9,
+        sharp: { major: 'A', minor: 'F#m', dim: 'G#°' },
+        flat: { major: 'A', minor: 'Gbm', dim: 'Ab°' }
+      },
+
+      // E (4#)
+      {
+        id: 'E', chromatic: 4,
+        sharp: { major: 'E', minor: 'C#m', dim: 'D#°' },
+        flat: { major: 'E', minor: 'Dbm', dim: 'Eb°' }
+      },
+
+      // B (5#)
+      {
+        id: 'B', chromatic: 11,
+        sharp: { major: 'B', minor: 'G#m', dim: 'A#°' },
+        flat: { major: 'B', minor: 'Abm', dim: 'Bb°' }
+      },
+
+      // F# / Gb (6# / 6b)
+      {
+        id: 'F#', chromatic: 6,
+        sharp: { major: 'F#', minor: 'D#m', dim: 'F°' },
+        flat: { major: 'Gb', minor: 'Ebm', dim: 'F°' }
+      },
+
+      // C# / Db (7# / 5b)
+      {
+        id: 'Db', chromatic: 1,
+        sharp: { major: 'C#', minor: 'A#m', dim: 'C°' },
+        flat: { major: 'Db', minor: 'Bbm', dim: 'C°' }
+      },
+
+      // Ab / G# (4b / 8#)
+      {
+        id: 'Ab', chromatic: 8,
+        sharp: { major: 'G#', minor: 'Fm', dim: 'G°' },
+        flat: { major: 'Ab', minor: 'Fm', dim: 'G°' }
+      },
+
+      // Eb / D# (3b / 9#)
+      {
+        id: 'Eb', chromatic: 3,
+        sharp: { major: 'D#', minor: 'Cm', dim: 'D°' },
+        flat: { major: 'Eb', minor: 'Cm', dim: 'D°' }
+      },
+
+      // Bb / A# (2b / 10#)
+      {
+        id: 'Bb', chromatic: 10,
+        sharp: { major: 'A#', minor: 'Gm', dim: 'A°' },
+        flat: { major: 'Bb', minor: 'Gm', dim: 'A°' }
+      },
+
+      // F (1b)
+      {
+        id: 'F', chromatic: 5,
+        sharp: { major: 'F', minor: 'Dm', dim: 'E°' },
+        flat: { major: 'F', minor: 'Dm', dim: 'E°' }
+      }
+    ];
+
+    // --- Chord Definitions (Intervals in semitones) ---
+    const CHORD_TEMPLATES = {
+      'Major': { intervals: [0, 4, 7], suffix: '' },
+      'Minor': { intervals: [0, 3, 7], suffix: 'm' },
+      'Diminished': { intervals: [0, 3, 6], suffix: '°' },
+      'Maj7': { intervals: [0, 4, 7, 11], suffix: 'maj7' },
+      'Dom7': { intervals: [0, 4, 7, 10], suffix: '7' },
+      'Min7': { intervals: [0, 3, 7, 10], suffix: 'm7' }
+    };
+
+    const DIATONIC_SCALE = [
+      { degree: 'I', interval: 0, type: 'Major' },
+      { degree: 'ii', interval: 2, type: 'Minor' },
+      { degree: 'iii', interval: 4, type: 'Minor' },
+      { degree: 'IV', interval: 5, type: 'Major' },
+      { degree: 'V', interval: 7, type: 'Major' },
+      { degree: 'vi', interval: 9, type: 'Minor' },
+      { degree: 'vii°', interval: 11, type: 'Diminished' }
+    ];
+
+    const MODE_NAMES = ['Ionian', 'Dorian', 'Phrygian', 'Lydian', 'Mixolydian', 'Aeolian', 'Locrian'];
+
+    // --- Configuration ---
+    const RADIUS_OUTER = 9.0;
+    const RADIUS_MIDDLE = 6.8;
+    const RADIUS_INNER = 4.6;
+
+    const RING_SEP_OUTER = 7.9;
+    const RING_SEP_INNER = 5.7;
+    const RING_DIM_LIMIT = 3.5;
+
+    const SEGMENTS = 12;
+
+    let isFlatMode = false;
+    let isMinorMode = false;
+    let globalFont = null;
+    let targetRotation = 0;
+
+    // Active chord notes to highlight (array of circle indices)
+    let activeChordIndices = null;
+    let activeChordChromatics = null; // Used for smarter highlighting
+    let activeRootChromatic = null; // Used to emphasize the root of a mode
+
+    // --- Scene Setup ---
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x111118);
+    scene.fog = new THREE.FogExp2(0x111118, 0.035);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 30, 0);
+    camera.lookAt(0, 0, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.toneMapping = THREE.ReinhardToneMapping;
+    container.appendChild(renderer.domElement);
+
+    // --- Post Processing ---
+    const renderScene = new RenderPass(scene, camera);
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+    bloomPass.threshold = 0;
+    bloomPass.strength = 1.2;
+    bloomPass.radius = 0.5;
+
+    const composer = new EffectComposer(renderer);
+    composer.addPass(renderScene);
+    composer.addPass(bloomPass);
+
+    // --- Controls ---
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.minDistance = 5;
+    controls.maxDistance = 50;
+    controls.enableRotate = true;
+
+    // --- Lighting ---
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
+
+    const pointLight = new THREE.PointLight(0xffffff, 200);
+    pointLight.position.set(0, 20, 0);
+    scene.add(pointLight);
+
+    const redLight = new THREE.PointLight(0xff0000, 100);
+    redLight.position.set(15, 10, 15);
+    scene.add(redLight);
+
+    const blueLight = new THREE.PointLight(0x0000ff, 100);
+    blueLight.position.set(-15, 10, -15);
+    scene.add(blueLight);
+
+    // --- Groups ---
+    const mainGroup = new THREE.Group();
+    mainGroup.rotation.x = -Math.PI / 2;
+    scene.add(mainGroup);
+
+    const contentGroup = new THREE.Group();
+    mainGroup.add(contentGroup);
+
+    const hitTargets = [];
+    let visualItems = [];
+
+    // --- Helpers ---
+    function getRainbowColor(index, total) {
+      const hue = index / total;
+      return new THREE.Color().setHSL(hue, 0.8, 0.5);
+    }
+
+    function createHitbox(innerRadius, outerRadius, theta, index, type) {
+      const segmentAngle = (Math.PI * 2) / SEGMENTS;
+      const geometry = new THREE.RingGeometry(innerRadius, outerRadius, 2, 1, -segmentAngle / 2, segmentAngle);
+      const material = new THREE.MeshBasicMaterial({
+        color: 0xff00ff,
+        visible: true, /* IMPORTANT: Must be true for raycaster to hit it reliably */
+        transparent: true,
+        opacity: 0, /* But invisible to eye */
+        side: THREE.DoubleSide
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.rotation.z = theta;
+      mesh.userData = { index: index, type: type };
+      return mesh;
+    }
+
+    function getDataForIndex(index) {
+      const item = circleData[index];
+      return isFlatMode ? item.flat : item.sharp;
+    }
+
+    function createText(text, radius, theta, color, size, opacity, type, index) {
+      const textRotation = theta - Math.PI / 2;
+
+      const geo = new TextGeometry(text, {
+        font: globalFont, size: size, height: 0.1, curveSegments: 12,
+        bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.01, bevelSegments: 3
+      });
+      geo.center();
+
+      const mat = new THREE.MeshStandardMaterial({
+        color: color, roughness: 0.3, metalness: 0.1,
+        opacity: opacity, transparent: true,
+        emissive: color, emissiveIntensity: 0.2
+      });
+
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(Math.cos(theta) * radius, Math.sin(theta) * radius, 0);
+      mesh.rotation.z = textRotation;
+      mesh.userData = { index: index, type: type };
+
+      return mesh;
+    }
+
+    // --- Main Layout Generator ---
+    function updateLayout() {
+      if (!globalFont) return;
+
+      contentGroup.clear();
+      hitTargets.length = 0;
+      visualItems.length = 0;
+
+      circleData.forEach((item, i) => {
+        const data = getDataForIndex(i);
+
+        const angle = (Math.PI * 2 * i) / SEGMENTS;
+        const theta = (Math.PI / 2) - angle;
+        const color = getRainbowColor(i, SEGMENTS);
+
+        let outerContent, middleContent, innerContent;
+        let outerType, middleType, innerType;
+
+        if (isMinorMode) {
+          outerContent = data.minor; outerType = 'minor';
+          middleContent = data.major; middleType = 'major';
+        } else {
+          outerContent = data.major; outerType = 'major';
+          middleContent = data.minor; middleType = 'minor';
+        }
+
+        innerContent = data.dim; innerType = 'diminished';
+
+        // --- 1. Outer Ring ---
+        const meshOuter = createText(outerContent, RADIUS_OUTER, theta, color, 1.2, 1.0, outerType, i);
+        contentGroup.add(meshOuter);
+        visualItems.push(meshOuter);
+
+        const hitOuter = createHitbox(RING_SEP_OUTER, RADIUS_OUTER + 1.5, theta, i, outerType);
+        contentGroup.add(hitOuter);
+        hitTargets.push(hitOuter);
+
+        // --- 2. Middle Ring ---
+        const meshMiddle = createText(middleContent, RADIUS_MIDDLE, theta, color, 0.8, 0.9, middleType, i);
+        contentGroup.add(meshMiddle);
+        visualItems.push(meshMiddle);
+
+        const hitMiddle = createHitbox(RING_SEP_INNER, RING_SEP_OUTER, theta, i, middleType);
+        contentGroup.add(hitMiddle);
+        hitTargets.push(hitMiddle);
+
+        // --- 3. Inner Ring ---
+        const meshInner = createText(innerContent, RADIUS_INNER, theta, color, 0.6, 0.7, innerType, i);
+        contentGroup.add(meshInner);
+        visualItems.push(meshInner);
+
+        const hitInner = createHitbox(RING_DIM_LIMIT, RING_SEP_INNER, theta, i, innerType);
+        contentGroup.add(hitInner);
+        hitTargets.push(hitInner);
+
+        // --- Ticks ---
+        const tickGeo = new THREE.BoxGeometry(0.05, 0.4, 0.05);
+        const tickMat = new THREE.MeshBasicMaterial({ color: 0x333333 });
+
+        const tick1 = new THREE.Mesh(tickGeo, tickMat);
+        tick1.position.set(Math.cos(theta) * RING_SEP_OUTER, Math.sin(theta) * RING_SEP_OUTER, -0.1);
+        tick1.rotation.z = theta + Math.PI / 2;
+        contentGroup.add(tick1);
+
+        const tick2 = new THREE.Mesh(tickGeo, tickMat);
+        tick2.position.set(Math.cos(theta) * RING_SEP_INNER, Math.sin(theta) * RING_SEP_INNER, -0.1);
+        tick2.rotation.z = theta + Math.PI / 2;
+        contentGroup.add(tick2);
+      });
+
+      // --- Static Rings ---
+      const ringMat = new THREE.MeshBasicMaterial({ color: 0x555555, transparent: true, opacity: 0.2 });
+      contentGroup.add(new THREE.Mesh(new THREE.TorusGeometry(RING_SEP_INNER, 0.03, 16, 100), ringMat));
+      contentGroup.add(new THREE.Mesh(new THREE.TorusGeometry(RING_SEP_OUTER, 0.03, 16, 100), ringMat));
+      contentGroup.add(new THREE.Mesh(new THREE.TorusGeometry(RADIUS_OUTER + 2, 0.02, 16, 100), ringMat));
+
+      updateInteraction();
+    }
+
+    // --- Init ---
+    const loader = new FontLoader();
+    loader.load('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/fonts/helvetiker_bold.typeface.json', function (font) {
+      globalFont = font;
+      document.getElementById('loading').style.opacity = 0;
+      updateLayout();
+    });
+
+    // --- Interaction ---
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    let hoveredIndex = -1;
+    let lockedIndex = -1;
+    let lastDisplayedIndex = -1;
+
+    function onMouseMove(event) {
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    }
+
+    function setTargetRotation(index) {
+      const segmentAngle = (Math.PI * 2) / SEGMENTS;
+      const target = index * segmentAngle;
+
+      const current = mainGroup.rotation.z;
+      let delta = (target - current) % (Math.PI * 2);
+      if (delta > Math.PI) delta -= Math.PI * 2;
+      if (delta < -Math.PI) delta += Math.PI * 2;
+
+      targetRotation = current + delta;
+    }
+
+    function onMouseClick(event) {
+      if (event.target.closest('#controls-panel') || event.target.closest('#info-panel')) return;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(hitTargets);
+
+      if (intersects.length > 0) {
+        const index = intersects[0].object.userData.index;
+
+        if (lockedIndex === index) {
+          lockedIndex = -1;
+          activeChordChromatics = null;
+          activeRootChromatic = null;
+        } else {
+          lockedIndex = index;
+          activeChordChromatics = null;
+          activeRootChromatic = null;
+          setTargetRotation(index);
+        }
+      } else {
+        lockedIndex = -1;
+        activeChordChromatics = null;
+        activeRootChromatic = null;
+      }
+    }
+
+    window.addEventListener('mousemove', onMouseMove, false);
+    window.addEventListener('click', onMouseClick, false);
+    window.addEventListener('touchstart', (e) => {
+      if (e.touches.length > 0) {
+        mouse.x = (e.touches[0].clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(e.touches[0].clientY / window.innerHeight) * 2 + 1;
+      }
+    }, { passive: true });
+
+    // Toggle Buttons
+    const enharmonicBtn = document.getElementById('enharmonic-btn');
+    enharmonicBtn.addEventListener('click', () => {
+      isFlatMode = !isFlatMode;
+      enharmonicBtn.innerHTML = isFlatMode ? '<span class="icon">♯</span> Switch to Sharps' : '<span class="icon">♭</span> Switch to Flats';
+      updateLayout();
+    });
+
+    const modeBtn = document.getElementById('mode-btn');
+    modeBtn.addEventListener('click', () => {
+      isMinorMode = !isMinorMode;
+      modeBtn.innerHTML = isMinorMode ? '<span class="icon">M</span> Show Majors' : '<span class="icon">m</span> Show Minors';
+      updateLayout();
+    });
+
+    function updateInteraction() {
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(hitTargets);
+      let currentHover = -1;
+
+      if (intersects.length > 0) {
+        currentHover = intersects[0].object.userData.index;
+      }
+      hoveredIndex = currentHover;
+
+      const activeIndex = (lockedIndex !== -1) ? lockedIndex : hoveredIndex;
+
+      if (activeIndex !== -1) {
+        if (lastDisplayedIndex !== activeIndex) {
+          const data = getDataForIndex(activeIndex);
+          const color = getRainbowColor(activeIndex, SEGMENTS);
+          updateInfoPanel(data, color, activeIndex);
+          lastDisplayedIndex = activeIndex;
+        }
+      } else {
+        if (lastDisplayedIndex !== -1) {
+          hideInfoPanel();
+          lastDisplayedIndex = -1;
+          activeChordChromatics = null;
+          activeRootChromatic = null;
+        }
+      }
+
+      // --- Visual Highlighting Logic ---
+      const nothingActive = (activeIndex === -1);
+
+      // Step 1: Pre-calculate "Best Mesh" for each chromatic note in chord if active
+      const bestMeshes = new Set();
+      if (activeChordChromatics && activeIndex !== -1) {
+        activeChordChromatics.forEach(note => {
+          let bestDist = 100;
+          let bestMesh = null;
+
+          visualItems.forEach(mesh => {
+            const meshIdx = mesh.userData.index;
+            const meshType = mesh.userData.type;
+
+            // Calculate this mesh's root chromatic
+            let meshRoot = circleData[meshIdx].chromatic;
+            if (meshType === 'minor') meshRoot = (meshRoot + 9) % 12;
+            if (meshType === 'diminished') meshRoot = (meshRoot + 11) % 12;
+
+            if (meshRoot === note) {
+              // Distance calculation (circular index distance)
+              let dist = Math.abs(meshIdx - activeIndex);
+              if (dist > 6) dist = 12 - dist;
+
+              // Tie-breaker preference: Major/Minor > Diminished
+              if (meshType === 'diminished') dist += 0.1;
+
+              if (dist < bestDist) {
+                bestDist = dist;
+                bestMesh = mesh;
+              }
+            }
+          });
+
+          if (bestMesh) bestMeshes.add(bestMesh);
+        });
+      }
+
+      visualItems.forEach(mesh => {
+        const meshIdx = mesh.userData.index;
+        const meshType = mesh.userData.type;
+
+        // Get Chromatic of this mesh
+        let meshChrom = circleData[meshIdx].chromatic;
+        if (meshType === 'minor') meshChrom = (meshChrom + 9) % 12;
+        if (meshType === 'diminished') meshChrom = (meshChrom + 11) % 12;
+
+        if (nothingActive) {
+          // Default State
+          if (meshType === 'diminished') mesh.material.opacity = 0.7;
+          else if (meshType === (isMinorMode ? 'major' : 'minor')) mesh.material.opacity = 0.9;
+          else mesh.material.opacity = 1.0;
+
+          mesh.material.emissiveIntensity = THREE.MathUtils.lerp(mesh.material.emissiveIntensity, 0.2, 0.1);
+          mesh.scale.lerp(new THREE.Vector3(1.0, 1.0, 1.0), 0.1);
+        } else {
+          let isActive = false;
+          let isRootSlice = false;
+          let isRootOfMode = false; // New flag for modes
+
+          if (activeChordChromatics) {
+            // CHORD MODE: Highlight only the "Best Match" meshes
+            if (bestMeshes.has(mesh)) {
+              isActive = true;
+              // Check if this specific mesh is the Root of the active Mode
+              if (activeRootChromatic !== null && meshChrom === activeRootChromatic) {
+                isRootOfMode = true;
+              }
+            }
+          } else {
+            // STANDARD MODE: Highlight Key + Neighbors
+            const prevIndex = (activeIndex - 1 + 12) % 12;
+            const nextIndex = (activeIndex + 1) % 12;
+
+            if (meshIdx === activeIndex) {
+              isActive = true;
+              isRootSlice = true;
+            } else if (meshIdx === prevIndex || meshIdx === nextIndex) {
+              if (meshType !== 'diminished') {
+                isActive = true;
+              }
+            }
+          }
+
+          if (isActive) {
+            mesh.material.opacity = 1.0;
+
+            // Priority: Root of Mode > Root of Key Slice > Chord Member
+            if (isRootOfMode) {
+              mesh.material.emissiveIntensity = 3.0; // Very bright
+              const targetScale = 1.3;
+              mesh.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.15);
+            } else {
+              // NEW: If we are showing a Mode (activeRootChromatic is set),
+              // dim the other notes in the scale so the root pops.
+              if (activeRootChromatic !== null) {
+                mesh.material.emissiveIntensity = 0.5;
+              } else {
+                // Normal Chord/Key highlighting
+                mesh.material.emissiveIntensity = isRootSlice ? 2.0 : 1.5;
+              }
+
+              const targetScale = isRootSlice ? 1.2 : 1.1;
+              mesh.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
+            }
+          } else {
+            mesh.material.opacity = 0.1;
+            mesh.material.emissiveIntensity = 0.05;
+            mesh.scale.lerp(new THREE.Vector3(1.0, 1.0, 1.0), 0.1);
+          }
+        }
+      });
+    }
+
+    const infoPanel = document.getElementById('info-panel');
+
+    function getChordChromatics(rootIndex, chordType) {
+      const rootData = circleData[rootIndex];
+      const rootChromatic = rootData.chromatic;
+      const template = CHORD_TEMPLATES[chordType];
+
+      // Calculate required chromatic values
+      return template.intervals.map(interval => (rootChromatic + interval) % 12);
+    }
+
+    function getModeChromatics(rootIndex, modeIndex) {
+      // A Mode is simply the full diatonic scale (Ionian intervals) of the PARENT key.
+      // But we need to identify the Root Note of this specific mode to highlight it.
+      // Parent Key = rootIndex.
+      // Mode Index = 0 (Ionian) to 6 (Locrian).
+      // Scale notes are simply the diatonic notes of the Parent.
+
+      // Standard Diatonic Scale intervals from Parent Root: 0, 2, 4, 5, 7, 9, 11
+      const DIATONIC_INTERVALS = [0, 2, 4, 5, 7, 9, 11];
+      const parentChrom = circleData[rootIndex].chromatic;
+
+      const scaleChromatics = DIATONIC_INTERVALS.map(iv => (parentChrom + iv) % 12);
+
+      // The Root of the Mode is the note at index 'modeIndex' in this scale
+      const modeRootChrom = scaleChromatics[modeIndex];
+
+      return { scale: scaleChromatics, root: modeRootChrom };
+    }
+
+    function updateInfoPanel(data, color, index) {
+      const mainLabel = isMinorMode ? data.minor + " Minor" : data.major + " Major";
+
+      let diatonicHtml = '';
+
+      DIATONIC_SCALE.forEach(step => {
+        const rootChromatic = circleData[index].chromatic;
+        let stepRootChrom;
+
+        // Diatonic Major Scale Intervals
+        if (step.degree === 'I') stepRootChrom = (rootChromatic + 0) % 12;
+        if (step.degree === 'ii') stepRootChrom = (rootChromatic + 2) % 12;
+        if (step.degree === 'iii') stepRootChrom = (rootChromatic + 4) % 12;
+        if (step.degree === 'IV') stepRootChrom = (rootChromatic + 5) % 12;
+        if (step.degree === 'V') stepRootChrom = (rootChromatic + 7) % 12;
+        if (step.degree === 'vi') stepRootChrom = (rootChromatic + 9) % 12;
+        if (step.degree === 'vii°') stepRootChrom = (rootChromatic + 11) % 12;
+
+        const stepIdx = circleData.findIndex(c => c.chromatic === stepRootChrom);
+        const stepData = getDataForIndex(stepIdx);
+
+        const noteName = stepData.major;
+        const suffix = (step.type === 'Minor' ? 'm' : (step.type === 'Diminished' ? '°' : ''));
+        const chordName = noteName + suffix;
+
+        diatonicHtml += `
+                    <div class="chord-btn"
+                         onmouseenter="window.hoverChord(${stepIdx}, '${step.type}', '${chordName}')"
+                         onmouseleave="window.leaveChord()">
+                        <span>${chordName}</span>
+                        <span class="chord-roman">${step.degree}</span>
+                    </div>`;
+      });
+
+      let variantHtml = '';
+      const variants = ['Maj7', 'Dom7', 'Minor', 'Min7'];
+
+      const baseNoteName = isMinorMode ? data.minor.replace('m', '') : data.major;
+      const variantRootIndex = isMinorMode ? circleData.findIndex(c => c.chromatic === (circleData[index].chromatic + 9) % 12) : index;
+
+      variants.forEach(vType => {
+        const suffix = CHORD_TEMPLATES[vType].suffix;
+        const display = baseNoteName + suffix;
+
+        variantHtml += `
+                    <div class="chord-btn"
+                         onmouseenter="window.hoverChord(${variantRootIndex}, '${vType}', '${display}')"
+                         onmouseleave="window.leaveChord()">
+                        <span>${display}</span>
+                    </div>`;
+      });
+
+      // 3. Modes
+      let modesHtml = '';
+      // Only show modes if in Major mode to avoid confusion, or map relative modes if in minor?
+      // Let's show modes relative to the MAJOR key selected.
+      // If Minor Mode is active (e.g. Am selected), index points to C Major slice.
+      // So listing modes of C Major (C Ionian, D Dorian...) is correct.
+
+      DIATONIC_SCALE.forEach((step, i) => {
+        const rootChromatic = circleData[index].chromatic;
+        let stepRootChrom;
+        if (step.degree === 'I') stepRootChrom = (rootChromatic + 0) % 12;
+        if (step.degree === 'ii') stepRootChrom = (rootChromatic + 2) % 12;
+        if (step.degree === 'iii') stepRootChrom = (rootChromatic + 4) % 12;
+        if (step.degree === 'IV') stepRootChrom = (rootChromatic + 5) % 12;
+        if (step.degree === 'V') stepRootChrom = (rootChromatic + 7) % 12;
+        if (step.degree === 'vi') stepRootChrom = (rootChromatic + 9) % 12;
+        if (step.degree === 'vii°') stepRootChrom = (rootChromatic + 11) % 12;
+
+        const stepIdx = circleData.findIndex(c => c.chromatic === stepRootChrom);
+        const stepData = getDataForIndex(stepIdx);
+        const noteName = stepData.major;
+
+        const modeName = MODE_NAMES[i];
+        const displayName = `${noteName} ${modeName}`;
+
+        modesHtml += `
+                    <div class="chord-btn"
+                         onmouseenter="window.hoverMode(${index}, ${i})"
+                         onmouseleave="window.leaveChord()">
+                        <span>${displayName}</span>
+                    </div>`;
+      });
+
+      let html = `
+                <h1 style="color:#${color.getHexString()}">${mainLabel}</h1>
+
+                <div class="chord-section">
+                    <div class="section-title">In Key</div>
+                    <div class="chord-grid">
+                        ${diatonicHtml}
+                    </div>
+                </div>
+
+                <div class="chord-section">
+                    <div class="section-title">Variants</div>
+                    <div class="chord-grid">
+                        ${variantHtml}
+                    </div>
+                </div>
+
+                <div class="chord-section">
+                    <div class="section-title">Modes</div>
+                    <div class="chord-grid">
+                        ${modesHtml}
+                    </div>
+                </div>
+
+                <div id="note-display"></div>
+            `;
+
+      infoPanel.innerHTML = html;
+      infoPanel.style.opacity = 1;
+      infoPanel.style.borderColor = '#' + color.getHexString();
+    }
+
+    // --- Global Handlers for HTML Buttons ---
+    window.hoverChord = (rootIndex, type, displayName) => {
+      const chromatics = getChordChromatics(rootIndex, type);
+      activeChordChromatics = chromatics;
+      activeRootChromatic = null; // No specific emphasis for chords beyond default
+
+      const noteNames = chromatics.map(c => {
+        const d = circleData.find(item => item.chromatic === c);
+        const currentData = isFlatMode ? d.flat : d.sharp;
+        return currentData.major;
+      });
+      document.getElementById('note-display').innerText = noteNames.join(' - ');
+    };
+
+    window.hoverMode = (parentIndex, modeIndex) => {
+      const modeInfo = getModeChromatics(parentIndex, modeIndex);
+
+      // Organize scale order starting from root
+      // modeInfo.scale is diatonic order (C, D, E...).
+      // We want to sort it starting from modeInfo.root.
+      let sortedScale = [...modeInfo.scale];
+      // Rotate array until root is first
+      while (sortedScale[0] !== modeInfo.root) {
+        sortedScale.push(sortedScale.shift());
+      }
+
+      activeChordChromatics = modeInfo.scale; // Highlight all notes
+      activeRootChromatic = modeInfo.root;    // Emphasize the Mode Root
+
+      const noteNames = sortedScale.map(c => {
+        const d = circleData.find(item => item.chromatic === c);
+        const currentData = isFlatMode ? d.flat : d.sharp;
+        return currentData.major;
+      });
+      document.getElementById('note-display').innerText = noteNames.join(' - ');
+    };
+
+    window.leaveChord = () => {
+      activeChordChromatics = null;
+      activeRootChromatic = null;
+      document.getElementById('note-display').innerText = '';
+    };
+
+    function hideInfoPanel() {
+      infoPanel.style.opacity = 0;
+    }
+
+    // --- Animation Loop ---
+    function animate() {
+      requestAnimationFrame(animate);
+
+      if (Math.abs(mainGroup.rotation.z - targetRotation) > 0.001) {
+        mainGroup.rotation.z = THREE.MathUtils.lerp(mainGroup.rotation.z, targetRotation, 0.05);
+      }
+
+      updateInteraction();
+      controls.update();
+      composer.render();
+    }
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      composer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    animate();
+  </script>
+</body>
+
+</html>
