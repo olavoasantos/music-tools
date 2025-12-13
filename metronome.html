@@ -517,10 +517,7 @@
 
 <body>
 
-  <div id="start-overlay">
-    <h2>Rhythm Runway</h2>
-    <p>Click anywhere to Initialize</p>
-  </div>
+  <!-- Removed Start Overlay -->
 
   <div id="countdown-display">3</div>
   <div id="canvas-container"></div>
@@ -1241,7 +1238,7 @@
     const bpmInput = document.getElementById('bpm-val');
     const bpmDec = document.getElementById('dec-btn');
     const bpmInc = document.getElementById('inc-btn');
-    const overlay = document.getElementById('start-overlay');
+    // Removed overlay reference
     const volSlider = document.getElementById('vol-slider');
     const muteBtn = document.getElementById('mute-btn');
 
@@ -1394,19 +1391,20 @@
     muteBtn.addEventListener('click', () => { isVolMuted = !isVolMuted; if (isVolMuted) { prevVol = Math.max(masterGainNode.gain.value, 0.5); masterGainNode.gain.value = 0; volSlider.value = 0; muteBtn.innerText = "🔇"; } else { masterGainNode.gain.value = prevVol; volSlider.value = prevVol * 100; muteBtn.innerText = "🔊"; } });
 
     playBtn.addEventListener('click', startStop);
-    overlay.addEventListener('click', () => {
-      overlay.style.opacity = 0;
-      setTimeout(() => overlay.remove(), 500);
-      if (audioContext.state === 'suspended') audioContext.resume();
-      // Kick off the infinite scheduler on first click
-      scheduler();
-    });
+
+    // Removed overlay event listener
+
     window.addEventListener('resize', () => { if (camera && renderer) { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); } });
 
     renderAccents();
     // Init panel visibility
     btnConfig.click();
-    window.onload = init3D;
+
+    window.onload = function () {
+      init3D();
+      // Start the visual scheduler loop immediately
+      scheduler();
+    };
   </script>
 </body>
 
