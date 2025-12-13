@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rhythm Runway Metronome</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #000;
+      font-family: 'Orbitron', sans-serif;
+      color: #00ffff;
+      user-select: none;
+    }
+
+    #canvas-container {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    /* --- UI Layers --- */
+    #start-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      cursor: pointer;
+      transition: opacity 0.5s;
+    }
+
+    #start-overlay h2 {
+      font-size: 2.5rem;
+      margin-bottom: 15px;
+      text-shadow: 0 0 20px #00ffff;
+    }
+
+    /* Top Bar */
+    #top-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 70px;
+      background: rgba(10, 10, 15, 0.9);
+      border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      box-sizing: border-box;
+    }
+
+    /* Top Bar Sections */
+    .menu-toggles {
+      display: flex;
+      gap: 15px;
+    }
+
+    .bpm-section {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .vol-section {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 150px;
+    }
+
+    /* Buttons & Inputs */
+    .menu-btn {
+      background: transparent;
+      border: 1px solid rgba(0, 255, 255, 0.3);
+      color: #00ffff;
+      font-size: 1.4rem;
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .menu-btn:hover {
+      background: rgba(0, 255, 255, 0.1);
+      border-color: #00ffff;
+      box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+    }
+
+    .menu-btn.active {
+      background: #00ffff;
+      color: #000;
+      box-shadow: 0 0 15px rgba(0, 255, 255, 0.6);
+    }
+
+    .bpm-display-container {
+      display: flex;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 20px;
+      padding: 5px 15px;
+      border: 1px solid rgba(0, 255, 255, 0.1);
+    }
+
+    .bpm-val-input {
+      background: transparent;
+      border: none;
+      color: #00ffff;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 2rem;
+      font-weight: bold;
+      width: 90px;
+      text-align: center;
+      outline: none;
+      -moz-appearance: textfield;
+    }
+
+    .bpm-val-input::-webkit-outer-spin-button,
+    .bpm-val-input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    .bpm-label {
+      font-size: 0.8rem;
+      color: #888;
+      margin-left: 5px;
+    }
+
+    .circle-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(0, 255, 255, 0.1);
+      border: 1px solid #00ffff;
+      color: #00ffff;
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .circle-btn:hover {
+      background: #00ffff;
+      color: #000;
+      box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+    }
+
+    #tap-btn {
+      font-size: 0.9rem;
+      padding: 8px 18px;
+      border: 1px solid #ff00ff;
+      color: #ff00ff;
+      background: rgba(255, 0, 255, 0.1);
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Orbitron', sans-serif;
+      font-weight: bold;
+      transition: all 0.2s;
+    }
+
+    #tap-btn:hover {
+      background: #ff00ff;
+      color: #000;
+      box-shadow: 0 0 15px rgba(255, 0, 255, 0.5);
+    }
+
+    .vol-icon {
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+
+    input[type=range].horiz-slider {
+      -webkit-appearance: none;
+      width: 100%;
+      background: transparent;
+    }
+
+    input[type=range].horiz-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 16px;
+      width: 16px;
+      border-radius: 50%;
+      background: #00ffff;
+      cursor: pointer;
+      margin-top: -6px;
+      box-shadow: 0 0 8px #00ffff;
+    }
+
+    input[type=range].horiz-slider::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 4px;
+      background: #333;
+      border-radius: 2px;
+    }
+
+    /* Panels */
+    .panel {
+      position: absolute;
+      top: 80px;
+      left: 20px;
+      background: rgba(10, 10, 15, 0.95);
+      border: 1px solid rgba(0, 255, 255, 0.2);
+      border-radius: 12px;
+      padding: 20px;
+      display: none;
+      flex-direction: column;
+      gap: 15px;
+      backdrop-filter: blur(15px);
+      z-index: 90;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      width: 320px;
+    }
+
+    .panel.active {
+      display: flex;
+    }
+
+    .mode-tabs {
+      display: flex;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 6px;
+      padding: 4px;
+      margin-bottom: 10px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: #666;
+      padding: 8px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.8rem;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      background: rgba(0, 255, 255, 0.15);
+      color: #00ffff;
+      text-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
+    }
+
+    .settings-content {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .settings-content.active {
+      display: flex;
+    }
+
+    .divider {
+      height: 1px;
+      background: rgba(255, 255, 255, 0.1);
+      margin: 5px 0;
+    }
+
+    .section-header {
+      font-size: 0.8rem;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .control-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .control-label {
+      font-size: 0.9rem;
+      color: #ccc;
+    }
+
+    .stepper {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 2px;
+      border-radius: 4px;
+      border: 1px solid rgba(0, 255, 255, 0.1);
+    }
+
+    .stepper-val {
+      font-size: 0.9rem;
+      color: #fff;
+      min-width: 35px;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    .sm-btn {
+      width: 28px;
+      height: 28px;
+      font-size: 1.1rem;
+      background: transparent;
+      border: none;
+      color: #00ffff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .sm-btn:hover {
+      background: rgba(0, 255, 255, 0.1);
+    }
+
+    .neon-select {
+      background: #111;
+      border: 1px solid #333;
+      color: #00ffff;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.9rem;
+      padding: 4px 8px;
+      border-radius: 4px;
+      outline: none;
+    }
+
+    .accent-dots {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      max-width: 160px;
+      padding-bottom: 4px;
+    }
+
+    .accent-dots::-webkit-scrollbar {
+      height: 4px;
+    }
+
+    .accent-dots::-webkit-scrollbar-thumb {
+      background: #00ffff;
+      border-radius: 2px;
+    }
+
+    .accent-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 1px solid #444;
+      background: #004444;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .accent-dot[data-level="1"] {
+      background: #FFD700;
+      border-color: #FFD700;
+    }
+
+    .accent-dot[data-level="2"] {
+      background: #fff;
+      border-color: #ff0055;
+    }
+
+    /* Toggles */
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 36px;
+      height: 20px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #333;
+      transition: .4s;
+      border-radius: 20px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 14px;
+      width: 14px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked+.slider {
+      background-color: #00ffff;
+    }
+
+    input:checked+.slider:before {
+      transform: translateX(16px);
+      background-color: #000;
+    }
+
+    .disabled {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    .auto-start {
+      color: #00ff88;
+      text-shadow: 0 0 5px #00ff88;
+    }
+
+    .auto-end {
+      color: #ff0055;
+      text-shadow: 0 0 5px #ff0055;
+    }
+
+    /* Floating Play */
+    #play-btn-container {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 50;
+      width: 180px;
+    }
+
+    #play-btn {
+      width: 100%;
+      padding: 12px;
+      font-size: 1.2rem;
+      letter-spacing: 3px;
+      background: rgba(0, 0, 0, 0.6);
+      border: 2px solid #00ffff;
+      color: #00ffff;
+      font-family: 'Orbitron', sans-serif;
+      font-weight: bold;
+      border-radius: 30px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+      backdrop-filter: blur(5px);
+    }
+
+    #play-btn:hover {
+      background: #00ffff;
+      color: #000;
+      box-shadow: 0 0 40px rgba(0, 255, 255, 0.8);
+    }
+
+    #play-btn:active {
+      transform: scale(0.95);
+    }
+
+    /* Countdown Overlay */
+    #countdown-display {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 15rem;
+      font-weight: 900;
+      color: #fff;
+      text-shadow: 0 0 50px #00ffff;
+      z-index: 40;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.1s, transform 0.2s;
+    }
+
+    #countdown-display.active {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1.2);
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="start-overlay">
+    <h2>Rhythm Runway</h2>
+    <p>Click anywhere to Initialize</p>
+  </div>
+
+  <div id="countdown-display">3</div>
+  <div id="canvas-container"></div>
+
+  <div id="top-bar">
+    <div class="menu-toggles">
+      <button class="menu-btn" id="btn-config" title="Configuration">⚙️</button>
+      <button class="menu-btn" id="btn-practice" title="Practice Tools">🎓</button>
+    </div>
+    <div class="bpm-section">
+      <button id="tap-btn">TAP</button>
+      <button class="circle-btn" id="dec-btn">-</button>
+      <div class="bpm-display-container">
+        <input type="number" class="bpm-val-input" id="bpm-val" value="120" min="1" max="600">
+        <span class="bpm-label">BPM</span>
+      </div>
+      <button class="circle-btn" id="inc-btn">+</button>
+    </div>
+    <div class="vol-section">
+      <span class="vol-icon" id="mute-btn">🔊</span>
+      <input type="range" class="horiz-slider" id="vol-slider" min="0" max="100" value="50">
+    </div>
+  </div>
+
+  <!-- Config Panel -->
+  <div id="panel-config" class="panel">
+    <div class="section-header">Configuration</div>
+    <div class="mode-tabs">
+      <button class="tab-btn active" id="tab-std">STANDARD</button>
+      <button class="tab-btn" id="tab-poly">POLYRHYTHM</button>
+    </div>
+
+    <div id="content-std" class="settings-content active">
+      <div class="control-row">
+        <span class="control-label">Time Signature</span>
+        <select id="time-sig-select" class="neon-select">
+          <option value="1">1/4</option>
+          <option value="2">2/4</option>
+          <option value="3">3/4</option>
+          <option value="4" selected>4/4</option>
+          <option value="5">5/4</option>
+          <option value="6">6/8</option>
+          <option value="7">7/8</option>
+          <option value="8">8/8</option>
+          <option value="9">9/8</option>
+          <option value="12">12/8</option>
+        </select>
+      </div>
+      <div class="control-row">
+        <span class="control-label">Accents</span>
+        <div class="accent-dots" id="accent-container"></div>
+      </div>
+      <div class="control-row">
+        <span class="control-label">Subdivisions</span>
+        <div class="stepper">
+          <button class="sm-btn" id="subdiv-dec">-</button>
+          <span class="stepper-val" id="subdiv-val">1</span>
+          <button class="sm-btn" id="subdiv-inc">+</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="content-poly" class="settings-content">
+      <div class="control-row">
+        <span class="control-label" style="color:#00ffff">Pulse A (Main)</span>
+        <div class="stepper">
+          <button class="sm-btn" id="pulse-a-dec">-</button>
+          <span class="stepper-val" id="pulse-a-val">3</span>
+          <button class="sm-btn" id="pulse-a-inc">+</button>
+        </div>
+      </div>
+      <div class="control-row">
+        <span class="control-label" style="color:#ff00ff">Pulse B (Cross)</span>
+        <div class="stepper">
+          <button class="sm-btn" id="pulse-b-dec">-</button>
+          <span class="stepper-val" id="pulse-b-val">2</span>
+          <button class="sm-btn" id="pulse-b-inc">+</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Practice Panel -->
+  <div id="panel-practice" class="panel">
+    <div class="section-header">Practice Tools</div>
+
+    <!-- Beat Elim -->
+    <div class="section-header" style="margin-top:10px;">
+      <span style="font-size:0.7rem; color:#aaa;">Beat Elimination</span>
+      <label class="toggle-switch"><input type="checkbox" id="train-toggle"><span class="slider"></span></label>
+    </div>
+    <div id="trainer-settings" class="disabled" style="margin-bottom:15px;">
+      <div class="control-row">
+        <span class="control-label" style="color:#00ffff">Play Bars</span>
+        <div class="stepper">
+          <button class="sm-btn" id="train-play-dec">-</button>
+          <span class="stepper-val" id="train-play-val">3</span>
+          <button class="sm-btn" id="train-play-inc">+</button>
+        </div>
+      </div>
+      <div class="control-row">
+        <span class="control-label" style="color:#888">Mute Bars</span>
+        <div class="stepper">
+          <button class="sm-btn" id="train-mute-dec">-</button>
+          <span class="stepper-val" id="train-mute-val">1</span>
+          <button class="sm-btn" id="train-mute-inc">+</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Speed Trainer -->
+    <div class="section-header">
+      <span style="font-size:0.7rem; color:#aaa;">Speed Trainer</span>
+      <label class="toggle-switch"><input type="checkbox" id="auto-tempo-toggle"><span class="slider"></span></label>
+    </div>
+    <div id="auto-tempo-settings" class="disabled">
+      <div class="control-row">
+        <span class="control-label auto-start">Start</span>
+        <div class="stepper">
+          <button class="sm-btn" id="auto-start-dec">-</button>
+          <span class="stepper-val auto-start" id="auto-start-val">100</span>
+          <button class="sm-btn" id="auto-start-inc">+</button>
+        </div>
+        <span class="control-label auto-end">End</span>
+        <div class="stepper">
+          <button class="sm-btn" id="auto-end-dec">-</button>
+          <span class="stepper-val auto-end" id="auto-end-val">140</span>
+          <button class="sm-btn" id="auto-end-inc">+</button>
+        </div>
+      </div>
+      <div class="control-row" style="justify-content: center; margin: 10px 0;">
+        <div class="mode-tabs" style="width: 100%; margin:0;">
+          <button class="tab-btn active" id="btn-type-fixed">FIXED</button>
+          <button class="tab-btn" id="btn-type-percent">PERCENT</button>
+        </div>
+      </div>
+      <div class="control-row">
+        <span class="control-label">Change</span>
+        <div class="stepper">
+          <button class="sm-btn" id="auto-step-dec">-</button>
+          <span class="stepper-val" id="auto-step-val">+2</span>
+          <button class="sm-btn" id="auto-step-inc">+</button>
+        </div>
+        <span style="font-size:0.7rem; color:#666;" id="auto-step-unit">BPM</span>
+      </div>
+      <div class="control-row">
+        <span class="control-label">Every</span>
+        <div class="stepper">
+          <button class="sm-btn" id="auto-int-dec">-</button>
+          <span class="stepper-val" id="auto-int-val">4</span>
+          <button class="sm-btn" id="auto-int-inc">+</button>
+        </div>
+        <span style="font-size:0.7rem; color:#666;">BARS</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="play-btn-container"><button id="play-btn">START</button></div>
+
+  <script>
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const masterGainNode = audioContext.createGain();
+    masterGainNode.connect(audioContext.destination);
+    masterGainNode.gain.value = 0.5;
+
+    // --- STATE ---
+    let isPlaying = false;
+    let bpm = 120;
+    let audioStartTime = 0;
+
+    let isPolyActive = false;
+    let isTrainerActive = false;
+    let isAutoTempoActive = false;
+
+    // Std
+    let beatsPerMeasure = 4;
+    let accentPattern = [2, 0, 1, 0];
+    let currentBeat = 0;
+    let subdivision = 1;
+    let currentSubIndex = 0;
+
+    // Poly
+    let pulseA = 3;
+    let pulseB = 2;
+    let countA = 0;
+    let countB = 0;
+
+    // Trainer
+    let trainerPlay = 3;
+    let trainerMute = 1;
+
+    // Auto Tempo
+    let autoStartBpm = 100;
+    let autoEndBpm = 140;
+    let autoTempoStep = 2;
+    let autoTempoInterval = 4;
+    let autoTempoType = 'fixed';
+    let measuresSinceTempoChange = 0;
+
+    // Scheduling
+    let nextNoteTime = 0.0;
+    let nextNoteTimeA = 0.0;
+    let nextNoteTimeB = 0.0;
+    const scheduleAheadTime = 0.1;
+    const lookahead = 25.0;
+    let timerID;
+    let nextCountdownEvent = null;
+
+    // --- AUDIO ---
+    function playSound(time, type) {
+      if (!isPlaying) return;
+
+      const osc = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      osc.connect(gainNode);
+      gainNode.connect(masterGainNode);
+
+      let freq = 800; let vol = 1.0; let decay = 0.1; let wave = 'sine';
+
+      if (type === 'polyB') {
+        freq = 600; vol = 0.8; decay = 0.15; wave = 'square';
+        gainNode.gain.setValueAtTime(0, time);
+        gainNode.gain.linearRampToValueAtTime(vol * 0.4, time + 0.005);
+      } else {
+        if (type === 2) { freq = 1500; vol = 1.0; }
+        else if (type === 1) { freq = 1200; vol = 0.8; }
+        else if (type === 0) { freq = 800; vol = 0.6; }
+        else { freq = 400; vol = 0.4; decay = 0.05; }
+        gainNode.gain.setValueAtTime(vol, time);
+      }
+
+      osc.type = wave;
+      osc.frequency.setValueAtTime(freq, time);
+      if (type !== 'polyB') osc.frequency.exponentialRampToValueAtTime(Math.max(freq / 10, 10), time + decay);
+      else osc.frequency.exponentialRampToValueAtTime(freq * 0.5, time + decay);
+
+      gainNode.gain.exponentialRampToValueAtTime(0.001, time + decay);
+      osc.start(time);
+      osc.stop(time + decay);
+    }
+
+    function checkAutoTempo() {
+      if (!isAutoTempoActive) return;
+      const increasing = (autoStartBpm <= autoEndBpm);
+      if (increasing && bpm >= autoEndBpm) return;
+      if (!increasing && bpm <= autoEndBpm) return;
+
+      measuresSinceTempoChange++;
+      if (measuresSinceTempoChange >= autoTempoInterval) {
+        let newBpm = bpm;
+        if (autoTempoType === 'fixed') {
+          newBpm += autoTempoStep;
+        } else {
+          const factor = 1 + (autoTempoStep / 100);
+          newBpm = Math.round(bpm * factor);
+          if (newBpm === bpm && autoTempoStep !== 0) newBpm += (autoTempoStep > 0 ? 1 : -1);
+        }
+
+        if (increasing) { if (newBpm > autoEndBpm) newBpm = autoEndBpm; }
+        else { if (newBpm < autoEndBpm) newBpm = autoEndBpm; }
+
+        if (newBpm < 1) newBpm = 1;
+        if (newBpm > 600) newBpm = 600;
+
+        if (newBpm !== bpm) {
+          bpm = newBpm;
+          bpmInput.value = bpm;
+          const display = document.querySelector('.bpm-display-container');
+          display.style.borderColor = '#00ff00';
+          setTimeout(() => display.style.borderColor = 'rgba(0, 255, 255, 0.1)', 300);
+        }
+        measuresSinceTempoChange = 0;
+      }
+    }
+
+    function scheduler() {
+      const currentTime = audioContext.currentTime;
+
+      if (!isPolyActive) {
+        while (nextNoteTime < currentTime + scheduleAheadTime) {
+          let level = -1;
+          let isMuted = false;
+
+          if (isAutoTempoActive && currentSubIndex === 0) {
+            if (measuresSinceTempoChange === autoTempoInterval - 1) {
+              const beatsLeft = beatsPerMeasure - currentBeat;
+              if (beatsLeft <= 3 && beatsLeft >= 1) {
+                nextCountdownEvent = { time: nextNoteTime, label: beatsLeft.toString() };
+              }
+            }
+          }
+
+          if (isTrainerActive && isPlaying) {
+            const measureDur = (60.0 / bpm) * beatsPerMeasure;
+            const elapsed = nextNoteTime - audioStartTime;
+            const curMeas = Math.floor(Math.max(0, elapsed) / measureDur);
+            if ((curMeas % (trainerPlay + trainerMute)) >= trainerPlay) isMuted = true;
+          }
+
+          if (currentSubIndex === 0) {
+            if (currentBeat < accentPattern.length) level = accentPattern[currentBeat];
+            else level = 0;
+          }
+
+          if (!isMuted) playSound(nextNoteTime, level);
+
+          const interval = (60.0 / bpm) / subdivision;
+          nextNoteTime += interval;
+          currentSubIndex++;
+          if (currentSubIndex >= subdivision) {
+            currentSubIndex = 0;
+            currentBeat++;
+            if (currentBeat >= beatsPerMeasure) {
+              currentBeat = 0;
+              checkAutoTempo();
+            }
+          }
+        }
+      } else {
+        while (nextNoteTimeA < currentTime + scheduleAheadTime) {
+          let isMuted = false;
+
+          if (isAutoTempoActive && countA < pulseA) {
+            if (measuresSinceTempoChange === autoTempoInterval - 1) {
+              const beatsLeft = pulseA - countA;
+              if (beatsLeft <= 3 && beatsLeft >= 1) {
+                nextCountdownEvent = { time: nextNoteTimeA, label: beatsLeft.toString() };
+              }
+            }
+          }
+
+          if (isTrainerActive && isPlaying) {
+            const measureDur = (60.0 / bpm) * pulseA;
+            const elapsed = nextNoteTimeA - audioStartTime;
+            const curMeas = Math.floor(Math.max(0, elapsed) / measureDur);
+            if ((curMeas % (trainerPlay + trainerMute)) >= trainerPlay) isMuted = true;
+          }
+          if (!isMuted) playSound(nextNoteTimeA, countA === 0 ? 2 : 0);
+          nextNoteTimeA += (60.0 / bpm);
+          countA++;
+          if (countA >= pulseA) { countA = 0; checkAutoTempo(); }
+        }
+        const cycleDur = pulseA * (60.0 / bpm);
+        const intervalB = cycleDur / pulseB;
+        while (nextNoteTimeB < currentTime + scheduleAheadTime) {
+          let isMuted = false;
+          if (isTrainerActive && isPlaying) {
+            const elapsed = nextNoteTimeB - audioStartTime;
+            const curMeas = Math.floor(Math.max(0, elapsed) / cycleDur);
+            if ((curMeas % (trainerPlay + trainerMute)) >= trainerPlay) isMuted = true;
+          }
+          if (!isMuted) playSound(nextNoteTimeB, 'polyB');
+          nextNoteTimeB += intervalB;
+          countB++;
+          if (countB >= pulseB) countB = 0;
+        }
+      }
+      // Always schedule next loop
+      timerID = setTimeout(scheduler, lookahead);
+    }
+
+    function startStop() {
+      if (isPlaying) {
+        isPlaying = false;
+        document.getElementById('play-btn').innerText = "START";
+        document.getElementById('play-btn').style.borderColor = "#00ffff";
+        document.getElementById('play-btn').style.color = "#00ffff";
+        if (strikeLineMaterial) strikeLineMaterial.emissiveIntensity = 0.2;
+        document.getElementById('countdown-display').classList.remove('active');
+      } else {
+        if (audioContext.state === 'suspended') audioContext.resume();
+        isPlaying = true;
+        const now = audioContext.currentTime + 0.1;
+        audioStartTime = now;
+        currentSubIndex = 0; currentBeat = 0; countA = 0; countB = 0;
+        measuresSinceTempoChange = 0;
+        nextCountdownEvent = null;
+
+        if (isAutoTempoActive) { bpm = autoStartBpm; bpmInput.value = bpm; }
+
+        nextNoteTime = now; nextNoteTimeA = now; nextNoteTimeB = now;
+
+        document.getElementById('play-btn').innerText = "STOP";
+        document.getElementById('play-btn').style.borderColor = "#ff0055";
+        document.getElementById('play-btn').style.color = "#ff0055";
+      }
+    }
+
+    // --- VISUALS ---
+    let scene, camera, renderer;
+    let strikeLine, strikeLineMaterial;
+    let leftRail, rightRail;
+    let trackMesh;
+    const BAR_POOL_SIZE = 150;
+    const barPool = [];
+    const STRIKE_Z = 10;
+    const SPAWN_Z = -50;
+    const VISUAL_LOOKAHEAD = 4.0;
+
+    function createTrackTexture() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512; canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+
+      // 1. Solid Background (Runway Look)
+      const bgGrad = ctx.createLinearGradient(0, 0, 512, 0);
+      bgGrad.addColorStop(0, '#050010');
+      bgGrad.addColorStop(0.2, '#1a0530');
+      bgGrad.addColorStop(0.5, '#250840');
+      bgGrad.addColorStop(0.8, '#1a0530');
+      bgGrad.addColorStop(1, '#050010');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, 512, 512);
+
+      // 2. Texture Details
+      ctx.globalAlpha = 0.1;
+      ctx.fillStyle = '#fff';
+      for (let i = 0; i < 100; i++) {
+        const w = Math.random() * 2 + 1;
+        const h = Math.random() * 40 + 10;
+        ctx.fillRect(Math.random() * 512, Math.random() * 512, w, h);
+      }
+      ctx.globalAlpha = 1.0;
+
+      // 3. Lane Dividers
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(0, 255, 255, 0.15)';
+      ctx.beginPath();
+      for (let i = 64; i < 512; i += 64) { ctx.moveTo(i, 0); ctx.lineTo(i, 512); }
+      ctx.stroke();
+
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(0, 255, 255, 0.1)';
+      ctx.beginPath();
+      for (let i = 0; i <= 512; i += 128) { ctx.moveTo(0, i); ctx.lineTo(512, i); }
+      ctx.stroke();
+
+      // 4. Side Pattern
+      ctx.strokeStyle = 'rgba(0, 255, 255, 0.6)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let y = 0; y <= 512; y += 8) {
+        const x1 = 20; ctx.moveTo(x1, y); ctx.lineTo(x1 + (y % 32) / 4, y);
+        const x2 = 492; ctx.moveTo(x2, y); ctx.lineTo(x2 - (y % 32) / 4, y);
+      }
+      ctx.stroke();
+
+      return new THREE.CanvasTexture(canvas);
+    }
+
+    function init3D() {
+      const container = document.getElementById('canvas-container');
+      scene = new THREE.Scene();
+      scene.fog = new THREE.FogExp2(0x000000, 0.015);
+      camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
+      camera.position.set(0, 3, 16); camera.lookAt(0, 0, -20);
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      container.appendChild(renderer.domElement);
+
+      const gridGeo = new THREE.PlaneGeometry(200, 200, 40, 40);
+      const gridMat = new THREE.MeshBasicMaterial({ color: 0x222222, wireframe: true, transparent: true, opacity: 0.3 });
+      const grid = new THREE.Mesh(gridGeo, gridMat);
+      grid.rotation.x = -Math.PI / 2; grid.position.y = -1; scene.add(grid);
+
+      const trackGeo = new THREE.PlaneGeometry(12, 200);
+      const trackTex = createTrackTexture();
+      trackTex.wrapS = THREE.RepeatWrapping; trackTex.wrapT = THREE.RepeatWrapping;
+      trackTex.repeat.set(1, 4);
+      const trackMat = new THREE.MeshStandardMaterial({ map: trackTex, color: 0xffffff, roughness: 0.4, metalness: 0.5 });
+      trackMesh = new THREE.Mesh(trackGeo, trackMat);
+      trackMesh.rotation.x = -Math.PI / 2; trackMesh.position.y = -0.1; scene.add(trackMesh);
+
+      const railGeo = new THREE.BoxGeometry(0.2, 0.2, 200);
+      const railMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+      leftRail = new THREE.Mesh(railGeo, railMat); leftRail.position.set(-6, 0, 0); scene.add(leftRail);
+      rightRail = new THREE.Mesh(railGeo, railMat.clone()); rightRail.position.set(6, 0, 0); scene.add(rightRail);
+
+      const strikeGeo = new THREE.BoxGeometry(12.2, 0.1, 0.2);
+      strikeLineMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xff0055, emissiveIntensity: 0.5, toneMapped: false });
+      strikeLine = new THREE.Mesh(strikeGeo, strikeLineMaterial);
+      strikeLine.position.set(0, 0.05, STRIKE_Z); scene.add(strikeLine);
+
+      const strikeLight = new THREE.PointLight(0xff0055, 2, 10);
+      strikeLight.position.set(0, 2, STRIKE_Z); scene.add(strikeLight);
+      scene.add(new THREE.AmbientLight(0x404040));
+
+      const barGeo = new THREE.BoxGeometry(1, 1, 1);
+      const barMat = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00aaaa, emissiveIntensity: 0.8, roughness: 0.1, metalness: 0.8 });
+
+      for (let i = 0; i < BAR_POOL_SIZE; i++) {
+        const bar = new THREE.Mesh(barGeo, barMat.clone());
+        bar.visible = false; bar.position.y = 0.2;
+        scene.add(bar); barPool.push(bar);
+      }
+      animate();
+    }
+
+    const countdownEl = document.getElementById('countdown-display');
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const currentTime = audioContext.currentTime;
+
+      // Handle Countdown Visuals
+      if (nextCountdownEvent) {
+        if (currentTime >= nextCountdownEvent.time) {
+          countdownEl.innerText = nextCountdownEvent.label;
+          countdownEl.classList.add('active');
+          setTimeout(() => { countdownEl.classList.remove('active'); }, 400);
+          nextCountdownEvent = null;
+        }
+      }
+
+      if (isPlaying) {
+        // --- PLAYING STATE (Dynamic) ---
+
+        // Scroll Texture
+        if (trackMesh && trackMesh.material.map) {
+          trackMesh.material.map.offset.y += 0.008;
+        }
+
+        let globalMuted = false;
+        if (isTrainerActive) {
+          const measureDur = (60.0 / bpm) * (isPolyActive ? pulseA : beatsPerMeasure);
+          const elapsed = currentTime - audioStartTime;
+          const curIdx = Math.floor(Math.max(0, elapsed) / measureDur);
+          if ((curIdx % (trainerPlay + trainerMute)) >= trainerPlay) globalMuted = true;
+        }
+        leftRail.material.color.setHex(globalMuted ? 0x333333 : 0x00ffff);
+        rightRail.material.color.setHex(globalMuted ? 0x333333 : 0x00ffff);
+
+        barPool.forEach(b => b.visible = false);
+        let poolIndex = 0;
+        let flashIntensity = 0;
+
+        if (!isPolyActive) {
+          const interval = (60.0 / bpm) / subdivision;
+          let pTime = nextNoteTime;
+          let pSub = currentSubIndex;
+          let pBeat = currentBeat;
+          while (pTime < currentTime) {
+            pTime += interval; pSub++;
+            if (pSub >= subdivision) { pSub = 0; pBeat++; if (pBeat >= beatsPerMeasure) pBeat = 0; }
+          }
+          while (pTime < currentTime + VISUAL_LOOKAHEAD && poolIndex < BAR_POOL_SIZE) {
+            let noteMuted = false;
+            if (isTrainerActive) {
+              const mDur = (60.0 / bpm) * beatsPerMeasure;
+              const el = pTime - audioStartTime;
+              const idx = Math.floor(Math.max(0, el) / mDur);
+              if ((idx % (trainerPlay + trainerMute)) >= trainerPlay) noteMuted = true;
+            }
+            if (!noteMuted) {
+              const diff = pTime - currentTime;
+              const zPos = STRIKE_Z - (diff * ((STRIKE_Z - SPAWN_Z) / VISUAL_LOOKAHEAD));
+              if (Math.abs(diff) < 0.05) flashIntensity = 2.0;
+              const bar = barPool[poolIndex];
+              bar.position.set(0, 0.2, zPos); bar.visible = true;
+              if (pSub === 0) {
+                let lvl = 0;
+                if (pBeat < accentPattern.length) lvl = accentPattern[pBeat];
+                if (lvl === 2) { bar.scale.set(12, 0.25, 0.5); bar.material.emissive.setHex(0xffffff); bar.material.color.setHex(0xffffff); }
+                else if (lvl === 1) { bar.scale.set(12, 0.2, 0.5); bar.material.emissive.setHex(0xFFD700); bar.material.color.setHex(0xFFD700); }
+                else { bar.scale.set(12, 0.15, 0.5); bar.material.emissive.setHex(0x00aaaa); bar.material.color.setHex(0x00ffff); }
+              } else {
+                bar.scale.set(12, 0.05, 0.2); bar.material.emissive.setHex(0x003333); bar.material.color.setHex(0x005555);
+              }
+              poolIndex++;
+            }
+            pTime += interval; pSub++;
+            if (pSub >= subdivision) { pSub = 0; pBeat++; if (pBeat >= beatsPerMeasure) pBeat = 0; }
+          }
+        } else {
+          const cycleDur = pulseA * (60.0 / bpm);
+          const intA = 60.0 / bpm; const intB = cycleDur / pulseB;
+          let ptA = nextNoteTimeA; let pcA = countA;
+          while (ptA < currentTime) { ptA += intA; pcA = (pcA + 1) % pulseA; }
+          while (ptA < currentTime + VISUAL_LOOKAHEAD && poolIndex < BAR_POOL_SIZE) {
+            let noteMuted = false;
+            if (isTrainerActive) {
+              const el = ptA - audioStartTime; const idx = Math.floor(Math.max(0, el) / cycleDur);
+              if ((idx % (trainerPlay + trainerMute)) >= trainerPlay) noteMuted = true;
+            }
+            if (!noteMuted) {
+              const diff = ptA - currentTime;
+              const zPos = STRIKE_Z - (diff * ((STRIKE_Z - SPAWN_Z) / VISUAL_LOOKAHEAD));
+              if (Math.abs(diff) < 0.05) flashIntensity = 2.0;
+              const bar = barPool[poolIndex];
+              bar.position.set(-3, 0.2, zPos); bar.visible = true;
+              if (pcA === 0) { bar.scale.set(5.5, 0.25, 0.5); bar.material.emissive.setHex(0xffffff); bar.material.color.setHex(0xffffff); }
+              else { bar.scale.set(5.5, 0.15, 0.5); bar.material.emissive.setHex(0x00aaaa); bar.material.color.setHex(0x00ffff); }
+              poolIndex++;
+            }
+            ptA += intA; pcA = (pcA + 1) % pulseA;
+          }
+          let ptB = nextNoteTimeB; let pcB = countB;
+          while (ptB < currentTime) { ptB += intB; pcB = (pcB + 1) % pulseB; }
+          while (ptB < currentTime + VISUAL_LOOKAHEAD && poolIndex < BAR_POOL_SIZE) {
+            let noteMuted = false;
+            if (isTrainerActive) {
+              const el = ptB - audioStartTime; const idx = Math.floor(Math.max(0, el) / cycleDur);
+              if ((idx % (trainerPlay + trainerMute)) >= trainerPlay) noteMuted = true;
+            }
+            if (!noteMuted) {
+              const diff = ptB - currentTime;
+              const zPos = STRIKE_Z - (diff * ((STRIKE_Z - SPAWN_Z) / VISUAL_LOOKAHEAD));
+              if (Math.abs(diff) < 0.05) flashIntensity = Math.max(flashIntensity, 2.0);
+              const bar = barPool[poolIndex];
+              bar.position.set(3, 0.2, zPos); bar.visible = true;
+              if (pcB === 0) { bar.scale.set(5.5, 0.25, 0.5); bar.material.emissive.setHex(0xffffff); bar.material.color.setHex(0xffffff); }
+              else { bar.scale.set(5.5, 0.15, 0.5); bar.material.emissive.setHex(0xff00ff); bar.material.color.setHex(0xff00ff); }
+              poolIndex++;
+            }
+            ptB += intB; pcB = (pcB + 1) % pulseB;
+          }
+        }
+
+        if (globalMuted) {
+          strikeLineMaterial.emissive.setHex(0x220000); strikeLineMaterial.emissiveIntensity = 0.1;
+        } else if (flashIntensity > 0) {
+          strikeLineMaterial.emissive.setHex(0xffffff); strikeLineMaterial.emissiveIntensity = flashIntensity; strikeLine.scale.y = 1.5;
+        } else {
+          strikeLineMaterial.emissive.lerp(new THREE.Color(0xff0055), 0.15);
+          strikeLineMaterial.emissiveIntensity = THREE.MathUtils.lerp(strikeLineMaterial.emissiveIntensity, 0.5, 0.15);
+          strikeLine.scale.y = THREE.MathUtils.lerp(strikeLine.scale.y, 1.0, 0.15);
+        }
+
+      } else {
+        // --- STOPPED STATE (Static Preview) ---
+
+        // Reset Visuals
+        leftRail.material.color.setHex(0x00ffff);
+        rightRail.material.color.setHex(0x00ffff);
+        strikeLineMaterial.emissive.setHex(0x550022);
+        strikeLineMaterial.emissiveIntensity = 0.2;
+        barPool.forEach(b => b.visible = false);
+
+        let poolIndex = 0;
+
+        if (!isPolyActive) {
+          // Static Standard Preview
+          const secondsPerBeat = 60.0 / bpm;
+          const interval = secondsPerBeat / subdivision;
+
+          // Render 2 measures worth of preview
+          for (let i = 0; i < beatsPerMeasure * subdivision * 2; i++) {
+            const timeOffset = i * interval;
+            if (timeOffset > VISUAL_LOOKAHEAD) break;
+
+            const speedScale = (STRIKE_Z - SPAWN_Z) / VISUAL_LOOKAHEAD;
+            const zPos = STRIKE_Z - (timeOffset * speedScale);
+
+            const bar = barPool[poolIndex];
+            bar.position.set(0, 0.2, zPos);
+            bar.visible = true;
+
+            const subIdx = i % subdivision;
+            const beatIdx = Math.floor(i / subdivision) % beatsPerMeasure;
+
+            if (subIdx === 0) {
+              let lvl = 0;
+              if (beatIdx < accentPattern.length) lvl = accentPattern[beatIdx];
+              if (lvl === 2) { bar.scale.set(12, 0.25, 0.5); bar.material.emissive.setHex(0xffffff); bar.material.color.setHex(0xffffff); }
+              else if (lvl === 1) { bar.scale.set(12, 0.2, 0.5); bar.material.emissive.setHex(0xFFD700); bar.material.color.setHex(0xFFD700); }
+              else { bar.scale.set(12, 0.15, 0.5); bar.material.emissive.setHex(0x00aaaa); bar.material.color.setHex(0x00ffff); }
+            } else {
+              bar.scale.set(12, 0.05, 0.2); bar.material.emissive.setHex(0x003333); bar.material.color.setHex(0x005555);
+            }
+            poolIndex++;
+            if (poolIndex >= BAR_POOL_SIZE) break;
+          }
+        } else {
+          // Static Poly Preview
+          const cycleDur = pulseA * (60.0 / bpm);
+          const intA = 60.0 / bpm;
+          const intB = cycleDur / pulseB;
+
+          // A Preview
+          for (let i = 0; i < pulseA * 2; i++) {
+            const timeOffset = i * intA;
+            if (timeOffset > VISUAL_LOOKAHEAD) break;
+            const zPos = STRIKE_Z - (timeOffset * ((STRIKE_Z - SPAWN_Z) / VISUAL_LOOKAHEAD));
+            const bar = barPool[poolIndex];
+            bar.position.set(-3, 0.2, zPos); bar.visible = true;
+            if ((i % pulseA) === 0) { bar.scale.set(5.5, 0.25, 0.5); bar.material.emissive.setHex(0xffffff); bar.material.color.setHex(0xffffff); }
+            else { bar.scale.set(5.5, 0.15, 0.5); bar.material.emissive.setHex(0x00aaaa); bar.material.color.setHex(0x00ffff); }
+            poolIndex++;
+            if (poolIndex >= BAR_POOL_SIZE) break;
+          }
+
+          // B Preview
+          for (let i = 0; i < pulseB * 2; i++) {
+            const timeOffset = i * intB;
+            if (timeOffset > VISUAL_LOOKAHEAD) break;
+            const zPos = STRIKE_Z - (timeOffset * ((STRIKE_Z - SPAWN_Z) / VISUAL_LOOKAHEAD));
+            const bar = barPool[poolIndex];
+            bar.position.set(3, 0.2, zPos); bar.visible = true;
+            if ((i % pulseB) === 0) { bar.scale.set(5.5, 0.25, 0.5); bar.material.emissive.setHex(0xffffff); bar.material.color.setHex(0xffffff); }
+            else { bar.scale.set(5.5, 0.15, 0.5); bar.material.emissive.setHex(0xff00ff); bar.material.color.setHex(0xff00ff); }
+            poolIndex++;
+            if (poolIndex >= BAR_POOL_SIZE) break;
+          }
+        }
+      }
+
+      camera.position.x = Math.sin(currentTime * 0.5) * 0.5;
+      camera.lookAt(0, 0, -20);
+      renderer.render(scene, camera);
+    }
+
+    // --- INTERACTION ---
+    const playBtn = document.getElementById('play-btn');
+    const tapBtn = document.getElementById('tap-btn');
+    const bpmInput = document.getElementById('bpm-val');
+    const bpmDec = document.getElementById('dec-btn');
+    const bpmInc = document.getElementById('inc-btn');
+    const overlay = document.getElementById('start-overlay');
+    const volSlider = document.getElementById('vol-slider');
+    const muteBtn = document.getElementById('mute-btn');
+
+    const btnConfig = document.getElementById('btn-config');
+    const btnPractice = document.getElementById('btn-practice');
+    const pConfig = document.getElementById('panel-config');
+    const pPractice = document.getElementById('panel-practice');
+
+    function togglePanel(btn, panel) {
+      const isActive = btn.classList.contains('active');
+      btnConfig.classList.remove('active'); btnPractice.classList.remove('active');
+      pConfig.classList.remove('active'); pPractice.classList.remove('active');
+      if (!isActive) { btn.classList.add('active'); panel.classList.add('active'); }
+    }
+    btnConfig.addEventListener('click', () => togglePanel(btnConfig, pConfig));
+    btnPractice.addEventListener('click', () => togglePanel(btnPractice, pPractice));
+
+    const tabStd = document.getElementById('tab-std');
+    const tabPoly = document.getElementById('tab-poly');
+    const contentStd = document.getElementById('content-std');
+    const contentPoly = document.getElementById('content-poly');
+    function switchTab(mode) {
+      isPolyActive = (mode === 'poly');
+      if (mode === 'std') {
+        tabStd.classList.add('active'); tabPoly.classList.remove('active');
+        contentStd.classList.add('active'); contentPoly.classList.remove('active');
+      } else {
+        tabStd.classList.remove('active'); tabPoly.classList.add('active');
+        contentStd.classList.remove('active'); contentPoly.classList.add('active');
+      }
+      if (isPlaying) { startStop(); setTimeout(startStop, 100); }
+    }
+    tabStd.addEventListener('click', () => switchTab('std'));
+    tabPoly.addEventListener('click', () => switchTab('poly'));
+
+    function updateBPM(val) {
+      bpm = Math.min(600, Math.max(1, Math.round(val)));
+      bpmInput.value = bpm;
+      if (audioContext.state === 'suspended' && isPlaying) audioContext.resume();
+    }
+    bpmInput.addEventListener('change', (e) => updateBPM(e.target.value));
+    bpmDec.addEventListener('click', () => updateBPM(bpm - 1));
+    bpmInc.addEventListener('click', () => updateBPM(bpm + 1));
+
+    let tapTimes = [];
+    tapBtn.addEventListener('click', () => {
+      const now = performance.now();
+      if (tapTimes.length > 0 && now - tapTimes[tapTimes.length - 1] > 2000) tapTimes = [];
+      tapTimes.push(now);
+      if (tapTimes.length > 5) tapTimes.shift();
+      if (tapTimes.length > 1) {
+        let intervals = [];
+        for (let i = 1; i < tapTimes.length; i++) intervals.push(tapTimes[i] - tapTimes[i - 1]);
+        const avg = intervals.reduce((a, b) => a + b) / intervals.length;
+        updateBPM(Math.round(60000 / avg));
+      }
+      if (isPlaying) { startStop(); setTimeout(startStop, 100); }
+    });
+
+    const timeSigSelect = document.getElementById('time-sig-select');
+    const accentContainer = document.getElementById('accent-container');
+    function getDefaultPattern(beats) {
+      const p = new Array(beats).fill(0);
+      if (beats === 0) return [];
+      p[0] = 2;
+      if (beats === 4) p[2] = 1; else if (beats === 6) p[3] = 1;
+      else if (beats === 9) { p[3] = 1; p[6] = 1; } else if (beats === 12) { p[3] = 1; p[6] = 1; p[9] = 1; }
+      else if (beats === 5) p[3] = 1; else if (beats === 7) { p[2] = 1; p[4] = 1; }
+      return p;
+    }
+    function renderAccents() {
+      accentContainer.innerHTML = '';
+      accentPattern.forEach((level, index) => {
+        const dot = document.createElement('div');
+        dot.classList.add('accent-dot');
+        dot.dataset.level = level;
+        dot.addEventListener('click', () => {
+          let c = accentPattern[index]; if (c === 0) c = 2; else if (c === 2) c = 1; else c = 0;
+          accentPattern[index] = c; renderAccents();
+        });
+        accentContainer.appendChild(dot);
+      });
+      timeSigSelect.value = beatsPerMeasure;
+    }
+    timeSigSelect.addEventListener('change', (e) => {
+      const newCount = parseInt(e.target.value);
+      if (newCount !== beatsPerMeasure) {
+        beatsPerMeasure = newCount; accentPattern = getDefaultPattern(beatsPerMeasure); renderAccents();
+      }
+    });
+    const subdivDec = document.getElementById('subdiv-dec'); const subdivInc = document.getElementById('subdiv-inc'); const subdivVal = document.getElementById('subdiv-val');
+    function updateSub(chg) {
+      let n = subdivision + chg; if (n < 1) n = 1; if (n > 8) n = 8; if (n !== subdivision) { subdivision = n; subdivVal.innerText = n; currentSubIndex = 0; }
+    }
+    subdivDec.addEventListener('click', () => updateSub(-1)); subdivInc.addEventListener('click', () => updateSub(1));
+
+    const pADec = document.getElementById('pulse-a-dec'); const pAInc = document.getElementById('pulse-a-inc'); const pAVal = document.getElementById('pulse-a-val');
+    const pBDec = document.getElementById('pulse-b-dec'); const pBInc = document.getElementById('pulse-b-inc'); const pBVal = document.getElementById('pulse-b-val');
+    function updatePulse(t, c) {
+      if (t === 'A') { pulseA += c; if (pulseA < 1) pulseA = 1; pAVal.innerText = pulseA; } else { pulseB += c; if (pulseB < 1) pulseB = 1; pBVal.innerText = pulseB; } countA = 0; countB = 0;
+    }
+    pADec.addEventListener('click', () => updatePulse('A', -1)); pAInc.addEventListener('click', () => updatePulse('A', 1));
+    pBDec.addEventListener('click', () => updatePulse('B', -1)); pBInc.addEventListener('click', () => updatePulse('B', 1));
+
+    const trainToggle = document.getElementById('train-toggle'); const trainerSettings = document.getElementById('trainer-settings');
+    const tPlayDec = document.getElementById('train-play-dec'); const tPlayInc = document.getElementById('train-play-inc'); const tPlayVal = document.getElementById('train-play-val');
+    const tMuteDec = document.getElementById('train-mute-dec'); const tMuteInc = document.getElementById('train-mute-inc'); const tMuteVal = document.getElementById('train-mute-val');
+    trainToggle.addEventListener('change', (e) => {
+      isTrainerActive = e.target.checked;
+      if (isTrainerActive) trainerSettings.classList.remove('disabled'); else trainerSettings.classList.add('disabled');
+    });
+    function updateTrain(t, c) {
+      if (t === 'p') { trainerPlay += c; if (trainerPlay < 1) trainerPlay = 1; tPlayVal.innerText = trainerPlay; } else { trainerMute += c; if (trainerMute < 1) trainerMute = 1; tMuteVal.innerText = trainerMute; }
+    }
+    tPlayDec.addEventListener('click', () => updateTrain('p', -1)); tPlayInc.addEventListener('click', () => updateTrain('p', 1));
+    tMuteDec.addEventListener('click', () => updateTrain('m', -1)); tMuteInc.addEventListener('click', () => updateTrain('m', 1));
+
+    const autoTempoToggle = document.getElementById('auto-tempo-toggle'); const autoTempoSettings = document.getElementById('auto-tempo-settings');
+    const autoStartDec = document.getElementById('auto-start-dec'); const autoStartInc = document.getElementById('auto-start-inc'); const autoStartVal = document.getElementById('auto-start-val');
+    const autoEndDec = document.getElementById('auto-end-dec'); const autoEndInc = document.getElementById('auto-end-inc'); const autoEndVal = document.getElementById('auto-end-val');
+    const btnTypeFixed = document.getElementById('btn-type-fixed'); const btnTypePercent = document.getElementById('btn-type-percent'); const autoStepUnit = document.getElementById('auto-step-unit');
+    const autoStepDec = document.getElementById('auto-step-dec'); const autoStepInc = document.getElementById('auto-step-inc'); const autoStepVal = document.getElementById('auto-step-val');
+    const autoIntDec = document.getElementById('auto-int-dec'); const autoIntInc = document.getElementById('auto-int-inc'); const autoIntVal = document.getElementById('auto-int-val');
+
+    autoTempoToggle.addEventListener('change', (e) => {
+      isAutoTempoActive = e.target.checked;
+      if (isAutoTempoActive) autoTempoSettings.classList.remove('disabled'); else autoTempoSettings.classList.add('disabled');
+    });
+    function setAutoType(type) {
+      autoTempoType = type;
+      if (type === 'fixed') { btnTypeFixed.classList.add('active'); btnTypePercent.classList.remove('active'); autoStepUnit.innerText = "BPM"; autoTempoStep = Math.round(autoTempoStep); }
+      else { btnTypeFixed.classList.remove('active'); btnTypePercent.classList.add('active'); autoStepUnit.innerText = "%"; }
+      updateStepDisplay();
+    }
+    btnTypeFixed.addEventListener('click', () => setAutoType('fixed')); btnTypePercent.addEventListener('click', () => setAutoType('percent'));
+    function updateAutoRange(t, c) {
+      if (t === 'start') { autoStartBpm += c; if (autoStartBpm < 1) autoStartBpm = 1; if (autoStartBpm > 600) autoStartBpm = 600; autoStartVal.innerText = autoStartBpm; }
+      else { autoEndBpm += c; if (autoEndBpm < 1) autoEndBpm = 1; if (autoEndBpm > 600) autoEndBpm = 600; autoEndVal.innerText = autoEndBpm; }
+    }
+    autoStartDec.addEventListener('click', () => updateAutoRange('start', -1)); autoStartInc.addEventListener('click', () => updateAutoRange('start', 1));
+    autoEndDec.addEventListener('click', () => updateAutoRange('end', -1)); autoEndInc.addEventListener('click', () => updateAutoRange('end', 1));
+    function updateAutoStep(c) { autoTempoStep += c; updateStepDisplay(); }
+    function updateStepDisplay() { let prefix = autoTempoStep > 0 ? "+" : ""; autoStepVal.innerText = prefix + autoTempoStep; }
+    function updateAutoInterval(c) { autoTempoInterval += c; if (autoTempoInterval < 1) autoTempoInterval = 1; autoIntVal.innerText = autoTempoInterval; }
+    autoStepDec.addEventListener('click', () => updateAutoStep(-1)); autoStepInc.addEventListener('click', () => updateAutoStep(1));
+    autoIntDec.addEventListener('click', () => updateAutoInterval(-1)); autoIntInc.addEventListener('click', () => updateAutoInterval(1));
+
+    let isVolMuted = false; let prevVol = 0.5;
+    volSlider.addEventListener('input', (e) => { const v = e.target.value / 100; masterGainNode.gain.value = v; if (v === 0) { isVolMuted = true; muteBtn.innerText = "🔇"; } else { isVolMuted = false; muteBtn.innerText = "🔊"; prevVol = v; } });
+    muteBtn.addEventListener('click', () => { isVolMuted = !isVolMuted; if (isVolMuted) { prevVol = Math.max(masterGainNode.gain.value, 0.5); masterGainNode.gain.value = 0; volSlider.value = 0; muteBtn.innerText = "🔇"; } else { masterGainNode.gain.value = prevVol; volSlider.value = prevVol * 100; muteBtn.innerText = "🔊"; } });
+
+    playBtn.addEventListener('click', startStop);
+    overlay.addEventListener('click', () => {
+      overlay.style.opacity = 0;
+      setTimeout(() => overlay.remove(), 500);
+      if (audioContext.state === 'suspended') audioContext.resume();
+      // Kick off the infinite scheduler on first click
+      scheduler();
+    });
+    window.addEventListener('resize', () => { if (camera && renderer) { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); } });
+
+    renderAccents();
+    // Init panel visibility
+    btnConfig.click();
+    window.onload = init3D;
+  </script>
+</body>
+
+</html>
