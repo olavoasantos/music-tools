@@ -83,7 +83,6 @@
       border: 1px solid transparent;
       color: #eee;
       padding: 4px 8px;
-      /* Compact padding */
       border-radius: 4px;
       cursor: pointer;
       font-size: 0.9rem;
@@ -331,7 +330,20 @@
       { degree: 'vii°', interval: 11, type: 'Diminished' }
     ];
 
-    const MODE_NAMES = ['Ionian', 'Dorian', 'Phrygian', 'Lydian', 'Mixolydian', 'Aeolian', 'Locrian'];
+    // Natural Minor Scale Intervals (0, 2, 3, 5, 7, 8, 10)
+    const MINOR_DIATONIC_SCALE = [
+      { degree: 'i', interval: 0, type: 'Minor' },
+      { degree: 'ii°', interval: 2, type: 'Diminished' },
+      { degree: 'III', interval: 3, type: 'Major' },
+      { degree: 'iv', interval: 5, type: 'Minor' },
+      { degree: 'v', interval: 7, type: 'Minor' },
+      { degree: 'VI', interval: 8, type: 'Major' },
+      { degree: 'VII', interval: 10, type: 'Major' }
+    ];
+
+    const MAJOR_MODE_NAMES = ['Ionian', 'Dorian', 'Phrygian', 'Lydian', 'Mixolydian', 'Aeolian', 'Locrian'];
+    // Rotated for Minor (Aeolian first)
+    const MINOR_MODE_NAMES = ['Aeolian', 'Locrian', 'Ionian', 'Dorian', 'Phrygian', 'Lydian', 'Mixolydian'];
 
     // --- Configuration ---
     const RADIUS_OUTER = 9.0;
@@ -782,47 +794,47 @@
     }
 
     function getModeChromatics(rootIndex, modeIndex) {
-      // A Mode is simply the full diatonic scale (Ionian intervals) of the PARENT key.
-      // But we need to identify the Root Note of this specific mode to highlight it.
-      // Parent Key = rootIndex.
-      // Mode Index = 0 (Ionian) to 6 (Locrian).
-      // Scale notes are simply the diatonic notes of the Parent.
-
-      // Standard Diatonic Scale intervals from Parent Root: 0, 2, 4, 5, 7, 9, 11
       const DIATONIC_INTERVALS = [0, 2, 4, 5, 7, 9, 11];
       const parentChrom = circleData[rootIndex].chromatic;
-
       const scaleChromatics = DIATONIC_INTERVALS.map(iv => (parentChrom + iv) % 12);
-
-      // The Root of the Mode is the note at index 'modeIndex' in this scale
       const modeRootChrom = scaleChromatics[modeIndex];
-
       return { scale: scaleChromatics, root: modeRootChrom };
     }
 
     function updateInfoPanel(data, color, index) {
-      const mainLabel = isMinorMode ? data.minor + " Minor" : data.major + " Major";
+      // Determine Scale and Root based on Mode
+      let currentScale = isMinorMode ? MINOR_DIATONIC_SCALE : DIATONIC_SCALE;
 
+      // Intelligent Title (Removing 'm' from minor data to avoid "Am Minor")
+      let mainLabel;
+      let rootChromatic;
+
+      if (isMinorMode) {
+        // Remove 'm' from end if present
+        const rootName = data.minor.replace(/m$/, '');
+        mainLabel = rootName + " Minor";
+        // A Minor root is 3 semitones below C (index chromatic)
+        rootChromatic = (circleData[index].chromatic + 9) % 12;
+      } else {
+        mainLabel = data.major + " Major";
+        rootChromatic = circleData[index].chromatic;
+      }
+
+      // 1. Diatonic Chords (Scale)
       let diatonicHtml = '';
 
-      DIATONIC_SCALE.forEach(step => {
-        const rootChromatic = circleData[index].chromatic;
-        let stepRootChrom;
+      currentScale.forEach(step => {
+        let stepRootChrom = (rootChromatic + step.interval) % 12;
 
-        // Diatonic Major Scale Intervals
-        if (step.degree === 'I') stepRootChrom = (rootChromatic + 0) % 12;
-        if (step.degree === 'ii') stepRootChrom = (rootChromatic + 2) % 12;
-        if (step.degree === 'iii') stepRootChrom = (rootChromatic + 4) % 12;
-        if (step.degree === 'IV') stepRootChrom = (rootChromatic + 5) % 12;
-        if (step.degree === 'V') stepRootChrom = (rootChromatic + 7) % 12;
-        if (step.degree === 'vi') stepRootChrom = (rootChromatic + 9) % 12;
-        if (step.degree === 'vii°') stepRootChrom = (rootChromatic + 11) % 12;
-
+        // Find circle index for this root
         const stepIdx = circleData.findIndex(c => c.chromatic === stepRootChrom);
         const stepData = getDataForIndex(stepIdx);
 
+        // Name construction
         const noteName = stepData.major;
-        const suffix = (step.type === 'Minor' ? 'm' : (step.type === 'Diminished' ? '°' : ''));
+        let suffix = '';
+        if (step.type === 'Minor') suffix = 'm';
+        if (step.type === 'Diminished') suffix = '°';
         const chordName = noteName + suffix;
 
         diatonicHtml += `
@@ -834,11 +846,17 @@
                     </div>`;
       });
 
+      // 2. Variants
       let variantHtml = '';
       const variants = ['Maj7', 'Dom7', 'Minor', 'Min7'];
 
+      // For variants, we usually want variations of the *current Key center*.
+      // If in A Minor, we want Am, Am7, etc.
+      // We can use the mainLabel root.
       const baseNoteName = isMinorMode ? data.minor.replace('m', '') : data.major;
-      const variantRootIndex = isMinorMode ? circleData.findIndex(c => c.chromatic === (circleData[index].chromatic + 9) % 12) : index;
+
+      // Calculate circle index for this base note to pass to hover logic
+      const variantRootIndex = isMinorMode ? circleData.findIndex(c => c.chromatic === rootChromatic) : index;
 
       variants.forEach(vType => {
         const suffix = CHORD_TEMPLATES[vType].suffix;
@@ -854,32 +872,37 @@
 
       // 3. Modes
       let modesHtml = '';
-      // Only show modes if in Major mode to avoid confusion, or map relative modes if in minor?
-      // Let's show modes relative to the MAJOR key selected.
-      // If Minor Mode is active (e.g. Am selected), index points to C Major slice.
-      // So listing modes of C Major (C Ionian, D Dorian...) is correct.
+      let currentModeNames = isMinorMode ? MINOR_MODE_NAMES : MAJOR_MODE_NAMES;
 
-      DIATONIC_SCALE.forEach((step, i) => {
-        const rootChromatic = circleData[index].chromatic;
-        let stepRootChrom;
-        if (step.degree === 'I') stepRootChrom = (rootChromatic + 0) % 12;
-        if (step.degree === 'ii') stepRootChrom = (rootChromatic + 2) % 12;
-        if (step.degree === 'iii') stepRootChrom = (rootChromatic + 4) % 12;
-        if (step.degree === 'IV') stepRootChrom = (rootChromatic + 5) % 12;
-        if (step.degree === 'V') stepRootChrom = (rootChromatic + 7) % 12;
-        if (step.degree === 'vi') stepRootChrom = (rootChromatic + 9) % 12;
-        if (step.degree === 'vii°') stepRootChrom = (rootChromatic + 11) % 12;
+      // For modes logic:
+      // In Major (C): C Ionian, D Dorian...
+      // In Minor (Am): A Aeolian, B Locrian...
+      // We need to iterate 7 steps of the scale and name them.
 
-        const stepIdx = circleData.findIndex(c => c.chromatic === stepRootChrom);
-        const stepData = getDataForIndex(stepIdx);
-        const noteName = stepData.major;
+      // We need the parent major index for calculations.
+      // If Minor (Am), parent is C (index).
+      // If Major (C), parent is C (index).
+      // So 'index' is always the parent Major index.
+      // But the *order* of display changes.
 
-        const modeName = MODE_NAMES[i];
+      currentModeNames.forEach((modeName, i) => {
+        // If Minor, we start from Aeolian (which is index 5 of Major modes)
+        // sequence: 5, 6, 0, 1, 2, 3, 4
+        // Offset i by 5?
+        let actualModeIndex = isMinorMode ? (i + 5) % 7 : i;
+
+        const modeInfo = getModeChromatics(index, actualModeIndex);
+
+        // Find note name for this mode root
+        const rootData = circleData.find(c => c.chromatic === modeInfo.root);
+        const currentData = isFlatMode ? rootData.flat : rootData.sharp;
+        const noteName = currentData.major;
+
         const displayName = `${noteName} ${modeName}`;
 
         modesHtml += `
                     <div class="chord-btn"
-                         onmouseenter="window.hoverMode(${index}, ${i})"
+                         onmouseenter="window.hoverMode(${index}, ${actualModeIndex})"
                          onmouseleave="window.leaveChord()">
                         <span>${displayName}</span>
                     </div>`;
@@ -921,7 +944,7 @@
     window.hoverChord = (rootIndex, type, displayName) => {
       const chromatics = getChordChromatics(rootIndex, type);
       activeChordChromatics = chromatics;
-      activeRootChromatic = null; // No specific emphasis for chords beyond default
+      activeRootChromatic = null;
 
       const noteNames = chromatics.map(c => {
         const d = circleData.find(item => item.chromatic === c);
@@ -934,17 +957,13 @@
     window.hoverMode = (parentIndex, modeIndex) => {
       const modeInfo = getModeChromatics(parentIndex, modeIndex);
 
-      // Organize scale order starting from root
-      // modeInfo.scale is diatonic order (C, D, E...).
-      // We want to sort it starting from modeInfo.root.
       let sortedScale = [...modeInfo.scale];
-      // Rotate array until root is first
       while (sortedScale[0] !== modeInfo.root) {
         sortedScale.push(sortedScale.shift());
       }
 
-      activeChordChromatics = modeInfo.scale; // Highlight all notes
-      activeRootChromatic = modeInfo.root;    // Emphasize the Mode Root
+      activeChordChromatics = modeInfo.scale;
+      activeRootChromatic = modeInfo.root;
 
       const noteNames = sortedScale.map(c => {
         const d = circleData.find(item => item.chromatic === c);
