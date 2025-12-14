@@ -38,13 +38,17 @@
       width: 100%;
       padding: 20px;
       display: flex;
-      justify-content: space-between;
+      justify-content: center;
+      /* Changed to center for title/bubbles */
       align-items: flex-start;
       pointer-events: auto;
       z-index: 10;
+      position: relative;
     }
 
     #center-info {
+      /* Removed absolute positioning to let it flow in top-bar or just below */
+      /* Actually, let's keep it absolute centering for the bubbles/title to be precise */
       position: absolute;
       top: 20px;
       left: 50%;
@@ -59,9 +63,11 @@
 
     #bottom-bar {
       width: 100%;
-      padding: 20px;
+      padding: 30px;
       display: flex;
-      justify-content: center;
+      justify-content: space-between;
+      /* Spread content */
+      align-items: center;
       pointer-events: auto;
       z-index: 10;
     }
@@ -308,12 +314,13 @@
     /* Settings Menu */
     #settings-menu {
       position: absolute;
-      top: 75px;
+      bottom: 90px;
+      /* Anchored to bottom */
       right: 20px;
+      top: auto;
+      /* Reset top */
       width: 280px;
-      /* Slightly wider for input names */
       background: rgba(15, 15, 18, 0.95);
-      /* Slightly more opaque */
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 16px;
       padding: 16px;
@@ -322,7 +329,8 @@
       gap: 12px;
       backdrop-filter: blur(20px);
       box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-      transform-origin: top right;
+      transform-origin: bottom right;
+      /* Animate from bottom right */
       transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
       opacity: 0;
       transform: scale(0.95);
@@ -568,13 +576,15 @@
       background: rgba(255, 215, 0, 0.1);
     }
 
-    .string-indicator.editable:hover {
+    .string-indicator.editable:hover,
+    .string-indicator.selectable:hover {
       border-color: #fff;
       background: rgba(255, 255, 255, 0.2);
       cursor: pointer;
     }
 
-    .string-indicator.editing {
+    .string-indicator.editing,
+    .string-indicator.focused {
       border-color: #00dfff;
       color: #00dfff;
       box-shadow: 0 0 15px rgba(0, 223, 255, 0.4);
@@ -664,6 +674,102 @@
     .label-sharp {
       right: 5%;
     }
+
+    /* --- INTONATION WIZARD UI --- */
+    #intonation-panel {
+      display: none;
+      /* Hidden by default */
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin-top: 20px;
+      text-align: center;
+      pointer-events: auto;
+    }
+
+    .into-step {
+      font-size: 0.9rem;
+      color: #888;
+      font-weight: 700;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+    }
+
+    .into-instruction {
+      font-size: 1.4rem;
+      font-weight: 900;
+      color: white;
+      margin-bottom: 15px;
+      text-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+    }
+
+    .into-status-box {
+      background: rgba(0, 20, 30, 0.8);
+      border: 2px solid #333;
+      border-radius: 12px;
+      padding: 20px 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      min-width: 280px;
+      backdrop-filter: blur(10px);
+      transition: all 0.3s;
+    }
+
+    .into-status-box.locked {
+      border-color: #22c55e;
+      box-shadow: 0 0 30px rgba(34, 197, 94, 0.2);
+    }
+
+    .into-big-icon {
+      width: 60px;
+      height: 60px;
+      color: #555;
+      transition: color 0.2s;
+    }
+
+    .into-big-icon.active {
+      color: #00dfff;
+      animation: pulse 1s infinite;
+    }
+
+    .into-big-icon.success {
+      color: #22c55e;
+      animation: none;
+    }
+
+    .saddle-diagram {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-top: 10px;
+    }
+
+    .saddle-arrow {
+      font-size: 2rem;
+      font-weight: 900;
+      color: #555;
+    }
+
+    .saddle-arrow.highlight {
+      color: #ef4444;
+      text-shadow: 0 0 20px #ef4444;
+    }
+
+    @keyframes pulse {
+      0% {
+        opacity: 0.6;
+      }
+
+      50% {
+        opacity: 1;
+      }
+
+      100% {
+        opacity: 0.6;
+      }
+    }
   </style>
 </head>
 
@@ -689,8 +795,8 @@
 
     <!-- TOP BAR -->
     <div id="top-bar">
-      <!-- Top Left: Tuning Selector -->
-      <div class="tuning-select-wrapper">
+      <!-- Top Left: Tuning Selector (Absolute to left) -->
+      <div class="tuning-select-wrapper" style="position: absolute; left: 20px;">
         <select id="tuning-select" class="minimal-select">
           <optgroup label="Guitar (6-String)">
             <option value="g_std">Guitar: Standard</option>
@@ -719,12 +825,7 @@
         </select>
         <div class="select-chevron"><i data-lucide="chevron-down" size="16"></i></div>
       </div>
-
-      <!-- Top Right: Settings Toggle -->
-      <div style="display: flex; align-items: center;">
-        <div id="input-level-dot" title="Input Signal"></div>
-        <button id="settings-toggle" class="icon-btn"><i data-lucide="settings-2"></i></button>
-      </div>
+      <!-- Removed Top Right Settings Button -->
     </div>
 
     <!-- TOP CENTER CONTENT -->
@@ -753,36 +854,56 @@
         <button class="del-btn" id="delete-tuning" title="Delete Tuning" style="display:none;"><i data-lucide="trash-2"
             size="14"></i></button>
       </div>
+
+      <!-- INTONATION WIZARD UI (New) -->
+      <div id="intonation-panel">
+        <div class="into-step" id="into-step-label">SELECT A STRING</div>
+        <div class="into-instruction" id="into-main-text">Click bubble above</div>
+
+        <div class="into-status-box" id="into-box">
+          <!-- Icon SVG injected via JS -->
+          <div id="into-icon-container">
+            <i data-lucide="music-2" class="into-big-icon"></i>
+          </div>
+          <div id="into-sub-text" style="font-size:0.9rem; color:#aaa;">Waiting...</div>
+
+          <!-- Result Diagram (Hidden until result) -->
+          <div id="saddle-result" style="display:none; flex-direction:column; align-items:center;">
+            <div style="font-size:1.2rem; font-weight:bold; color:white;" id="saddle-action-text">MOVE SADDLE BACK</div>
+            <div class="saddle-diagram">
+              <span class="saddle-arrow" id="arrow-left">←</span>
+              <div style="width:40px; height:20px; background:#444; border-radius:4px;"></div>
+              <span class="saddle-arrow" id="arrow-right">→</span>
+            </div>
+          </div>
+        </div>
+
+        <button id="into-reset-btn" class="menu-btn" style="margin-top:15px; display:none;">NEXT STRING</button>
+      </div>
+
     </div>
 
     <!-- SETTINGS MENU -->
     <div id="settings-menu">
-      <!-- Input Device -->
-      <div class="menu-row">
-        <span class="menu-label">INPUT</span>
-        <select id="audio-device-select" class="settings-select">
-          <option value="default">Default Device</option>
-        </select>
-      </div>
-
-      <!-- Channel Selection -->
-      <div class="menu-row">
-        <span class="menu-label">CHANNEL</span>
-        <div class="channel-grp">
-          <button class="ch-btn" id="ch-1" onclick="setChannel(0)">1</button>
-          <button class="ch-btn" id="ch-2" onclick="setChannel(1)">2</button>
-          <button class="ch-btn active" id="ch-mix" onclick="setChannel('mix')">MIX</button>
-        </div>
-      </div>
-
-      <div style="width:100%; height:1px; background:rgba(255,255,255,0.1); margin: 8px 0;"></div>
+      <!-- TUNING GROUP (Moved to Top) -->
+      <div class="menu-label" style="margin-bottom:8px; color:#00dfff;">TUNING & DISPLAY</div>
 
       <div class="menu-row">
         <span class="menu-label">VISUAL MODE</span>
         <button id="mode-toggle" class="menu-btn" data-active="needle">Needle</button>
       </div>
 
-      <!-- Accidental Toggle -->
+      <!-- Intonation Toggle (New) -->
+      <div class="menu-row">
+        <span class="menu-label">INTONATION TOOL</span>
+        <button id="into-toggle" class="menu-btn" data-active="off" onclick="toggleIntonationMode()">OFF</button>
+      </div>
+
+      <div class="menu-row">
+        <span class="menu-label">FOCUS MODE</span>
+        <button id="focus-toggle" class="menu-btn" data-active="off" onclick="toggleFocusMode()">OFF</button>
+      </div>
+
       <div class="menu-row">
         <span class="menu-label">NOTATION</span>
         <div class="acc-group">
@@ -795,6 +916,7 @@
         <span class="menu-label">SWEETENER</span>
         <button id="sweet-toggle" class="menu-btn sweet-btn" data-mode="Standard">Standard</button>
       </div>
+
       <div class="menu-row">
         <span class="menu-label">REF PITCH</span>
         <div class="ref-control-group">
@@ -804,7 +926,6 @@
         </div>
       </div>
 
-      <!-- Capo Row -->
       <div class="menu-row">
         <span class="menu-label">CAPO</span>
         <div class="ref-control-group">
@@ -814,10 +935,35 @@
         </div>
       </div>
 
-      <!-- Sensitivity Row -->
+      <div style="width:100%; height:1px; background:rgba(255,255,255,0.1); margin: 12px 0;"></div>
+
+      <!-- AUDIO GROUP (Moved to Bottom) -->
+      <div class="menu-label" style="margin-bottom:8px; color:#00dfff;">AUDIO INPUT</div>
+
+      <div class="menu-row">
+        <span class="menu-label">DEVICE</span>
+        <select id="audio-device-select" class="settings-select">
+          <option value="default">Default Device</option>
+        </select>
+      </div>
+
+      <div class="menu-row">
+        <span class="menu-label">CHANNEL</span>
+        <div class="channel-grp">
+          <button class="ch-btn" id="ch-1" onclick="setChannel(0)">1</button>
+          <button class="ch-btn" id="ch-2" onclick="setChannel(1)">2</button>
+          <button class="ch-btn active" id="ch-mix" onclick="setChannel('mix')">MIX</button>
+        </div>
+      </div>
+
       <div class="menu-row">
         <span class="menu-label">SENSITIVITY</span>
         <input type="range" id="sens-slider" min="0.1" max="3.0" step="0.1" value="1.0">
+      </div>
+
+      <div class="menu-row">
+        <span class="menu-label">NOISE GATE</span>
+        <input type="range" id="gate-slider" min="0.001" max="0.1" step="0.001" value="0.01">
       </div>
     </div>
 
@@ -826,7 +972,17 @@
 
     <!-- BOTTOM BAR -->
     <div id="bottom-bar">
+      <!-- Left Spacer -->
+      <div style="flex:1;"></div>
+
+      <!-- Center Button -->
       <button id="control-btn" class="main-btn">Start Tuner</button>
+
+      <!-- Right Settings -->
+      <div style="flex:1; display:flex; justify-content:flex-end; align-items:center; gap:12px;">
+        <div id="input-level-dot" title="Input Signal"></div>
+        <button id="settings-toggle" class="icon-btn"><i data-lucide="settings-2"></i></button>
+      </div>
     </div>
 
   </div>
@@ -836,6 +992,9 @@
 
     // --- STATE ---
     let audioContext, analyser, microphone, lowPassFilter, inputGainNode;
+    // New Focus Filter Node
+    let focusFilterNode;
+
     let buflen = 4096;
     let buf = new Float32Array(buflen);
     let isRunning = false;
@@ -847,6 +1006,17 @@
     let accidentalPreference = '#';
     let currentCapo = 0;
     let inputSensitivity = 1.0;
+    let noiseGateThreshold = 0.01;
+
+    // Focus Mode State
+    let focusModeEnabled = false;
+
+    // Intonation Wizard State
+    let intonationMode = false;
+    let intoStep = 'select'; // 'select', 'open', '12th', 'result'
+    let intoStableCount = 0;
+    let intoBaseFreq = 0;
+    let intoTargetNote = "";
 
     // Input Config
     let selectedDeviceId = 'default';
@@ -962,24 +1132,51 @@
       return referencePitch * Math.pow(2, (noteNumber - 69) / 12);
     }
 
-    // --- NEW: DYNAMIC FILTERING ---
+    // --- NEW: DYNAMIC FILTERING & FOCUS ---
     function updateFilterForInstrument() {
       if (!lowPassFilter || !audioContext) return;
 
-      let cutoff = 2500; // Default (Guitar/Uke - crisp high end)
+      let cutoff = 2500;
 
-      // Analyze the Tuning Key to guess the instrument
       if (currentTuningKey.startsWith('b_')) {
-        // BASS MODE: Aggressive Cut
         cutoff = 450;
       }
       else if (currentTuningKey.startsWith('g_std8') || currentTuningKey.startsWith('g_std7') || currentTuningKey.startsWith('g_drop')) {
-        // EXTENDED RANGE / DROP TUNING: Moderate Cut
         cutoff = 900;
       }
 
-      // Smoothly transition the filter value to avoid popping artifacts
       lowPassFilter.frequency.setTargetAtTime(cutoff, audioContext.currentTime, 0.1);
+    }
+
+    function updateFocusFilter() {
+      if (!focusFilterNode || !audioContext) return;
+
+      // Check if Focus/Intonation is active and a string is selected
+      let targetIndex = selectedStringIndex;
+
+      if ((focusModeEnabled || intonationMode) && targetIndex !== -1) {
+        const noteName = TUNINGS[currentTuningKey].notes[targetIndex];
+        const realNote = transposeNote(noteName, currentCapo);
+        let freq = getFrequencyFromNoteStr(realNote);
+
+        // If in Step 2 of Intonation (12th fret), focus on Octave
+        if (intonationMode && intoStep === '12th') {
+          freq *= 2;
+        }
+
+        if (freq > 0) {
+          focusFilterNode.type = 'bandpass';
+          focusFilterNode.frequency.setTargetAtTime(freq, audioContext.currentTime, 0.05);
+          // Intonation needs tighter Q for precision
+          focusFilterNode.Q.setTargetAtTime(intonationMode ? 5 : 1.5, audioContext.currentTime, 0.05);
+          return;
+        }
+      }
+
+      // DISABLE FOCUS
+      focusFilterNode.type = 'peaking';
+      focusFilterNode.gain.value = 0;
+      focusFilterNode.frequency.value = 1000;
     }
 
     // Tone.js Instrument Initialization
@@ -1039,7 +1236,10 @@
       let SIZE = buf.length; let rms = 0;
       for (let i = 0; i < SIZE; i++) rms += buf[i] * buf[i];
       rms = Math.sqrt(rms / SIZE);
-      if (rms < 0.01) return -1;
+
+      // Use dynamic noise gate threshold
+      if (rms < noiseGateThreshold) return -1;
+
       let r1 = 0, r2 = SIZE - 1, thres = 0.2;
       for (let i = 0; i < SIZE / 2; i++) { if (Math.abs(buf[i]) < thres) { r1 = i; break; } }
       for (let i = 1; i < SIZE / 2; i++) { if (Math.abs(buf[SIZE - i]) < thres) { r2 = SIZE - i; break; } }
@@ -1076,7 +1276,7 @@
         // Clipping (Red)
         dot.style.backgroundColor = '#ef4444';
         dot.style.boxShadow = '0 0 8px rgba(239, 68, 68, 0.8)';
-      } else if (rms > 0.01) {
+      } else if (rms > noiseGateThreshold) { // Use dynamic threshold
         // Healthy Signal (Green)
         dot.style.backgroundColor = '#22c55e';
         dot.style.boxShadow = '0 0 5px rgba(34, 197, 94, 0.5)';
@@ -1185,6 +1385,215 @@
       if (currentNote !== "-") { noteNode.userData.lastNote = null; }
     }
 
+    function toggleFocusMode() {
+      if (intonationMode) return; // Disable focus toggle while in intonation
+      focusModeEnabled = !focusModeEnabled;
+      const btn = document.getElementById('focus-toggle');
+
+      if (focusModeEnabled) {
+        btn.textContent = "ON";
+        btn.style.color = "#00dfff";
+        btn.style.borderColor = "#00dfff";
+        btn.style.background = "rgba(0, 223, 255, 0.1)";
+      } else {
+        btn.textContent = "OFF";
+        btn.style.color = "#eee";
+        btn.style.borderColor = "rgba(255,255,255,0.1)";
+        btn.style.background = "rgba(255,255,255,0.05)";
+        if (!isCustomMode()) selectedStringIndex = -1;
+      }
+      renderStringGuide();
+      updateFocusFilter();
+    }
+
+    // --- INTONATION WIZARD LOGIC ---
+    function toggleIntonationMode() {
+      intonationMode = !intonationMode;
+      const btn = document.getElementById('into-toggle');
+      const panel = document.getElementById('intonation-panel');
+      const customControls = document.getElementById('custom-controls');
+
+      // UI Toggle
+      if (intonationMode) {
+        btn.textContent = "ON";
+        btn.style.color = "#ef4444"; // Red to show "Tool Active"
+        btn.style.borderColor = "#ef4444";
+        btn.style.background = "rgba(239, 68, 68, 0.1)";
+
+        // Hide Standard UI elements
+        pitchNode.visible = false; // Hide needle
+        if (centerLine) centerLine.visible = false;
+        panel.style.display = 'flex';
+        customControls.style.display = 'none'; // Hide custom controls to avoid clutter
+
+        // Force Strobe Mode Logic (Internal) for precision, but we use Wizard UI
+
+        // Reset Wizard
+        resetIntonationWizard();
+
+      } else {
+        btn.textContent = "OFF";
+        btn.style.color = "#eee";
+        btn.style.borderColor = "rgba(255,255,255,0.1)";
+        btn.style.background = "rgba(255,255,255,0.05)";
+
+        // Restore UI
+        if (tunerMode === 'needle') pitchNode.visible = true;
+        if (centerLine) centerLine.visible = true;
+        panel.style.display = 'none';
+        if (isCustomMode()) customControls.style.display = 'flex';
+
+        selectedStringIndex = -1;
+      }
+
+      renderStringGuide();
+      updateFocusFilter();
+      toggleSettings(); // Close menu
+    }
+
+    function resetIntonationWizard() {
+      intoStep = 'select';
+      intoStableCount = 0;
+      selectedStringIndex = -1;
+      renderStringGuide();
+      updateIntonationUI();
+    }
+
+    function nextIntonationStep() {
+      if (intoStep === 'select') {
+        intoStep = 'open';
+      } else if (intoStep === 'open') {
+        intoStep = '12th';
+      } else if (intoStep === '12th') {
+        intoStep = 'result';
+      } else if (intoStep === 'result') {
+        // Next string? or just reset
+        resetIntonationWizard();
+        return;
+      }
+      intoStableCount = 0;
+      updateIntonationUI();
+      updateFocusFilter();
+    }
+
+    function updateIntonationUI() {
+      const stepLabel = document.getElementById('into-step-label');
+      const mainText = document.getElementById('into-main-text');
+      const subText = document.getElementById('into-sub-text');
+      const box = document.getElementById('into-box');
+      const iconContainer = document.getElementById('into-icon-container');
+      const resultDiv = document.getElementById('saddle-result');
+      const resetBtn = document.getElementById('into-reset-btn');
+
+      // Reset box styles
+      box.className = 'into-status-box';
+      resultDiv.style.display = 'none';
+      iconContainer.style.display = 'block';
+      resetBtn.style.display = 'none';
+
+      if (intoStep === 'select') {
+        stepLabel.innerText = "SETUP WIZARD";
+        mainText.innerText = "Select a String";
+        subText.innerText = "Click a bubble above to start";
+        iconContainer.innerHTML = '<i data-lucide="mouse-pointer-2" class="into-big-icon"></i>';
+      }
+      else if (intoStep === 'open') {
+        stepLabel.innerText = "STEP 1/2";
+        mainText.innerText = `Tune Open ${formatNote(intoTargetNote)}`;
+        subText.innerText = "Get it perfect (0 cents)";
+        iconContainer.innerHTML = '<i data-lucide="music" class="into-big-icon"></i>';
+      }
+      else if (intoStep === '12th') {
+        stepLabel.innerText = "STEP 2/2";
+        mainText.innerText = "Play 12th Fret";
+        subText.innerText = "Waiting for Octave...";
+        iconContainer.innerHTML = '<i data-lucide="arrow-up-circle" class="into-big-icon"></i>';
+      }
+      else if (intoStep === 'result') {
+        stepLabel.innerText = "DIAGNOSIS";
+        mainText.innerText = intoTargetNote + " Intonation";
+        subText.innerText = ""; // Hidden
+        iconContainer.style.display = 'none';
+        resultDiv.style.display = 'flex';
+        resetBtn.style.display = 'block';
+      }
+      lucide.createIcons();
+    }
+
+    function processIntonationLogic(cents) {
+      const box = document.getElementById('into-box');
+      const icon = box.querySelector('.into-big-icon');
+
+      // Logic for Step 1: Open String
+      if (intoStep === 'open') {
+        // Must be within 1 cent for ~60 frames (1 sec)
+        if (Math.abs(cents) < 1.0) {
+          intoStableCount++;
+          icon.className = 'into-big-icon success';
+          box.classList.add('locked');
+
+          if (intoStableCount > 50) {
+            nextIntonationStep();
+          }
+        } else {
+          intoStableCount = 0;
+          icon.className = 'into-big-icon active'; // Pulse
+          box.classList.remove('locked');
+        }
+      }
+
+      // Logic for Step 2: 12th Fret
+      else if (intoStep === '12th') {
+        // Just capture a stable reading of the octave
+        // We check if freq is roughly 2x base freq (handled by updatePitch logic actually finding the note)
+        // If the note name matches but octave is +1
+
+        // Assuming updatePitch found the note correctly (e.g. E3)
+        // We just need it stable
+        // BUT we need to check if the note IS the octave.
+
+        // Simple check: Just stabilize on ANY input for now, assuming user follows instructions
+        if (currentNote !== "-" && Math.abs(cents) < 50) {
+          intoStableCount++;
+          if (intoStableCount > 40) {
+            // CAPTURE RESULT
+            showIntonationResult(cents);
+            intoStep = 'result';
+            updateIntonationUI();
+          }
+        } else {
+          intoStableCount = 0;
+        }
+      }
+    }
+
+    function showIntonationResult(cents) {
+      const actionText = document.getElementById('saddle-action-text');
+      const arrowL = document.getElementById('arrow-left');
+      const arrowR = document.getElementById('arrow-right');
+      const box = document.getElementById('into-box');
+
+      arrowL.classList.remove('highlight');
+      arrowR.classList.remove('highlight');
+      box.style.borderColor = '#333';
+
+      if (cents > 3) {
+        // SHARP -> String too short -> Lengthen -> Move Saddle Back (Away from neck)
+        actionText.innerText = "SHARP: MOVE SADDLE BACK";
+        actionText.style.color = "#ef4444";
+        arrowR.classList.add('highlight'); // Right arrow usually implies 'back/away' in diagrams
+      } else if (cents < -3) {
+        // FLAT -> String too long -> Shorten -> Move Saddle Forward (Toward neck)
+        actionText.innerText = "FLAT: MOVE SADDLE FORWARD";
+        actionText.style.color = "#ef4444";
+        arrowL.classList.add('highlight');
+      } else {
+        actionText.innerText = "INTONATION PERFECT!";
+        actionText.style.color = "#22c55e";
+        box.style.borderColor = "#22c55e";
+      }
+    }
+
     function toggleSettings() {
       settingsOpen = !settingsOpen;
       const menu = document.getElementById('settings-menu');
@@ -1197,19 +1606,18 @@
       const container = document.getElementById('string-guide');
       const indicators = container.getElementsByClassName('string-indicator');
       const baseNotes = TUNINGS[currentTuningKey].notes;
-
-      // Map base notes through Capo transposition
       const targetNotes = baseNotes.map(n => transposeNote(n, currentCapo));
 
       for (let i = 0; i < indicators.length; i++) {
         const targetNote = targetNotes[i];
         let isActive = (targetNote === detectedNote);
-        let isEditing = isCustomMode() && i === selectedStringIndex;
+        // Highlight if editing OR focused OR intonation select
+        let isSelected = (isCustomMode() || focusModeEnabled || intonationMode) && i === selectedStringIndex;
 
         indicators[i].className = 'string-indicator';
-        if (isCustomMode()) indicators[i].classList.add('editable');
+        if (isCustomMode() || focusModeEnabled || intonationMode) indicators[i].classList.add('selectable');
         if (isActive) indicators[i].classList.add('active');
-        if (isEditing) indicators[i].classList.add('editing');
+        if (isSelected) indicators[i].classList.add('focused');
       }
     }
 
@@ -1222,13 +1630,13 @@
       const deleteBtn = document.getElementById('delete-tuning');
 
       let displayName = TUNINGS[currentTuningKey].name;
-      // Append Capo indicator to Title if active
       if (currentCapo > 0) {
         displayName += ` <span style="font-size:0.6em; color:#00dfff; background:rgba(0,223,255,0.1); padding:2px 6px; border-radius:4px; vertical-align:middle;">CAPO ${currentCapo}</span>`;
       }
-      nameDisplay.innerHTML = displayName; // Use innerHTML for badge
+      nameDisplay.innerHTML = displayName;
 
-      if (isCustomMode()) {
+      // Hide custom controls if in Intonation Mode
+      if (isCustomMode() && !intonationMode) {
         nameDisplay.classList.add('editable-name');
         nameDisplay.title = "Click to rename/save";
         controls.style.display = 'flex';
@@ -1238,35 +1646,45 @@
         nameDisplay.title = "";
         controls.style.display = 'none';
         deleteBtn.style.display = 'none';
-        selectedStringIndex = -1;
+        // Only reset selection if logic demands it (not during intonation step progression)
+        if (!focusModeEnabled && !intonationMode) selectedStringIndex = -1;
       }
 
       container.innerHTML = '';
       const baseNotes = TUNINGS[currentTuningKey].notes;
 
       baseNotes.forEach((baseNote, index) => {
-        // Apply Capo Shift
         const realNote = transposeNote(baseNote, currentCapo);
-
         const el = document.createElement('div');
         el.className = 'string-indicator';
-        if (isCustomMode()) el.classList.add('editable');
+        if (isCustomMode() || focusModeEnabled || intonationMode) el.classList.add('selectable');
         el.textContent = formatNote(realNote);
 
         el.onclick = (e) => {
           e.stopPropagation();
-
-          // PLAY TONE uses the Transposed Note
           const freq = getFrequencyFromNoteStr(realNote);
           if (freq > 0) playTone(freq);
 
-          if (isCustomMode()) {
+          if (isCustomMode() || focusModeEnabled) {
             selectedStringIndex = index;
             updateEditDisplay();
             renderStringGuide();
+            updateFocusFilter();
+          }
+          else if (intonationMode) {
+            // Start Intonation Process for this string
+            selectedStringIndex = index;
+            intoTargetNote = realNote;
+            intoStep = 'open'; // Advance state
+            renderStringGuide();
+            updateIntonationUI();
+            updateFocusFilter();
           }
         };
-        if (index === selectedStringIndex && isCustomMode()) el.classList.add('editing');
+
+        if (index === selectedStringIndex && (isCustomMode() || focusModeEnabled || intonationMode)) {
+          el.classList.add('focused');
+        }
         container.appendChild(el);
       });
       updateEditDisplay();
@@ -1306,7 +1724,12 @@
 
       input.onclick = (ev) => { ev.stopPropagation(); };
       input.onblur = finishRenaming;
-      input.onkeydown = (e) => { if (e.key === 'Enter') finishRenaming(); };
+      input.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault(); // Prevent default enter behavior
+          input.blur(); // This will trigger the onblur handler, running finishRenaming exactly once
+        }
+      };
 
       display.appendChild(input);
       input.select();
@@ -1315,6 +1738,7 @@
     function finishRenaming() {
       const input = document.getElementById('tuning-name-input');
       if (!input) return;
+
       let newName = input.value.trim();
       if (newName.length === 0) newName = "CUSTOM TUNING";
       newName = newName.toUpperCase();
@@ -1331,6 +1755,42 @@
         userTunings[currentTuningKey].name = newName;
         saveUserTunings();
       }
+      renderStringGuide();
+    }
+
+    // --- CUSTOM TUNING ACTIONS ---
+    function modifyStringCount(delta) {
+      const notes = TUNINGS[currentTuningKey].notes;
+      if (delta > 0 && notes.length < 12) notes.push(notes[notes.length - 1] || "E2");
+      else if (delta < 0 && notes.length > 1) {
+        notes.pop();
+        if (selectedStringIndex >= notes.length) selectedStringIndex = notes.length - 1;
+      }
+      if (currentTuningKey.startsWith('user_')) saveUserTunings();
+      renderStringGuide();
+    }
+
+    function shiftSelectedNote(semitones) {
+      if (selectedStringIndex === -1) return;
+      const currentStr = TUNINGS[currentTuningKey].notes[selectedStringIndex];
+      const match = currentStr.match(/^([A-G]#?)(-?\d+)$/);
+      if (!match) return;
+
+      let noteName = match[1];
+      let octave = parseInt(match[2]);
+      let noteIdx = ALL_NOTES.indexOf(noteName);
+
+      noteIdx += semitones;
+
+      if (noteIdx > 11) { noteIdx = 0; octave++; }
+      else if (noteIdx < 0) { noteIdx = 11; octave--; }
+
+      if (octave < 0) octave = 0;
+      if (octave > 8) octave = 8;
+
+      TUNINGS[currentTuningKey].notes[selectedStringIndex] = ALL_NOTES[noteIdx] + octave;
+
+      if (currentTuningKey.startsWith('user_')) saveUserTunings();
       renderStringGuide();
     }
 
@@ -1447,9 +1907,17 @@
           lowPassFilter.type = "lowpass";
           lowPassFilter.frequency.value = 2500;
 
+          // Focus Filter (Init as pass-through)
+          focusFilterNode = audioContext.createBiquadFilter();
+          focusFilterNode.type = 'peaking';
+          focusFilterNode.gain.value = 0;
+
           inputGainNode = audioContext.createGain();
           inputGainNode.gain.value = inputSensitivity;
-          inputGainNode.connect(lowPassFilter);
+
+          // Chain: Gain -> Focus -> LowPass -> Analyser
+          inputGainNode.connect(focusFilterNode);
+          focusFilterNode.connect(lowPassFilter);
           lowPassFilter.connect(analyser);
         }
 
@@ -1464,7 +1932,7 @@
             echoCancellation: false,
             autoGainControl: false,
             noiseSuppression: false,
-            channelCount: 2 // Request stereo to access inputs 1 & 2 separately
+            channelCount: 2
           }
         };
 
@@ -1473,14 +1941,10 @@
 
         // Apply Channel Routing
         connectInputRouting();
-
-        // Now that we have permission, populate device list
         populateAudioDevices();
-
-        // Update filter based on current tuning immediately on start
         updateFilterForInstrument();
+        updateFocusFilter(); // Apply Focus if enabled
 
-        // Also init Tone.js on user gesture
         await initSynths();
 
         isRunning = true;
@@ -1531,6 +1995,11 @@
       if (inputGainNode) {
         inputGainNode.gain.setTargetAtTime(inputSensitivity, audioContext.currentTime, 0.1);
       }
+    }
+
+    // Noise Gate Logic
+    function changeGate() {
+      noiseGateThreshold = parseFloat(document.getElementById('gate-slider').value);
     }
 
     // Capo Logic
@@ -1773,72 +2242,77 @@
       if (isRunning && currentNote !== "-") { smoothedCents += (currentCents - smoothedCents) * 0.15; }
       else { smoothedCents += (0 - smoothedCents) * 0.1; }
 
-      const absCents = Math.abs(smoothedCents);
-      const t = Math.min(absCents / 40, 1);
-      let colorGreen = new THREE.Color(0x22c55e);
-      const colorRed = new THREE.Color(0xef4444);
-      let currentColor = colorGreen.clone().lerp(colorRed, t);
-
-      // Lock-on Logic
-      let xPos = (smoothedCents / 50) * 3.5;
-      let targetIcon = 'dot';
-
-      // Determine Icon State based on distance
-      if (absCents > 25) {
-        targetIcon = 'x';
-      } else if (absCents < 2) {
-        targetIcon = 'check'; // Sweet spot
+      // --- INTONATION LOGIC ---
+      if (intonationMode && isRunning) {
+        // If in active steps, process logic
+        if (intoStep === 'open' || intoStep === '12th') {
+          // Only process if we are playing roughly the right note
+          // (The Focus filter helps this, but we double check)
+          processIntonationLogic(smoothedCents);
+        }
       }
 
-      // "Magnetic" Snap Override
-      if (isRunning && currentNote !== "-" && absCents < 1.2) {
-        xPos = 0; // Snap visual position to center
-        // Boost color to bright cyan/white to indicate lock
-        currentColor = new THREE.Color(0x00ffff).lerp(new THREE.Color(0xffffff), 0.5);
-        targetIcon = 'check';
-      } else if (!isRunning || currentNote === "-") {
-        targetIcon = 'dot';
-      }
+      // --- STANDARD VISUALS (Only if NOT in Intonation Mode) ---
+      if (!intonationMode) {
+        const absCents = Math.abs(smoothedCents);
+        const t = Math.min(absCents / 40, 1);
+        let colorGreen = new THREE.Color(0x22c55e);
+        const colorRed = new THREE.Color(0xef4444);
+        let currentColor = colorGreen.clone().lerp(colorRed, t);
 
-      // Only redraw canvas if state changed to save performance
-      if (targetIcon !== currentIconState) {
-        drawStatusIcon(targetIcon);
-        currentIconState = targetIcon;
-      }
+        // Lock-on Logic
+        let xPos = (smoothedCents / 50) * 3.5;
+        let targetIcon = 'dot';
 
-      if (tunerMode === 'needle') {
-        pitchNode.position.x = xPos;
-        pitchNode.material.color = currentColor;
-        if (glowSprite) glowSprite.material.color = currentColor;
+        if (absCents > 25) { targetIcon = 'x'; }
+        else if (absCents < 2) { targetIcon = 'check'; }
 
-        if (Math.abs(smoothedCents - lastDisplayedCents) > 0.1 || (smoothedCents === 0 && lastDisplayedCents !== 0)) {
-          const ctx = centsCtx;
-          ctx.clearRect(0, 0, 256, 128);
-          if (isRunning && currentNote !== "-") {
-            const val = smoothedCents.toFixed(1);
-            const sign = smoothedCents > 0 ? "+" : "";
-            const text = `${sign}${val}`;
-            ctx.textAlign = "center";
-            const r = Math.floor(currentColor.r * 255);
-            const g = Math.floor(currentColor.g * 255);
-            const b = Math.floor(currentColor.b * 255);
-            const cssColor = `rgb(${r},${g},${b})`;
-            ctx.font = "bold 45px Inter"; ctx.fillStyle = cssColor;
-            ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 4;
-            ctx.fillText(text, 128, 60);
-            ctx.font = "bold 20px Inter"; ctx.fillStyle = "#888888";
-            ctx.fillText("cents", 128, 85);
+        if (isRunning && currentNote !== "-" && absCents < 1.2) {
+          xPos = 0;
+          currentColor = new THREE.Color(0x00ffff).lerp(new THREE.Color(0xffffff), 0.5);
+          targetIcon = 'check';
+        } else if (!isRunning || currentNote === "-") {
+          targetIcon = 'dot';
+        }
+
+        if (targetIcon !== currentIconState) {
+          drawStatusIcon(targetIcon);
+          currentIconState = targetIcon;
+        }
+
+        if (tunerMode === 'needle') {
+          pitchNode.position.x = xPos;
+          pitchNode.material.color = currentColor;
+          if (glowSprite) glowSprite.material.color = currentColor;
+
+          if (Math.abs(smoothedCents - lastDisplayedCents) > 0.1 || (smoothedCents === 0 && lastDisplayedCents !== 0)) {
+            const ctx = centsCtx;
+            ctx.clearRect(0, 0, 256, 128);
+            if (isRunning && currentNote !== "-") {
+              const val = smoothedCents.toFixed(1);
+              const text = `${smoothedCents > 0 ? "+" : ""}${val}`;
+              ctx.textAlign = "center";
+              const r = Math.floor(currentColor.r * 255);
+              const g = Math.floor(currentColor.g * 255);
+              const b = Math.floor(currentColor.b * 255);
+              const cssColor = `rgb(${r},${g},${b})`;
+              ctx.font = "bold 45px Inter"; ctx.fillStyle = cssColor;
+              ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 4;
+              ctx.fillText(text, 128, 60);
+              ctx.font = "bold 20px Inter"; ctx.fillStyle = "#888888";
+              ctx.fillText("cents", 128, 85);
+            }
+            centsTexture.needsUpdate = true;
+            lastDisplayedCents = smoothedCents;
           }
-          centsTexture.needsUpdate = true;
-          lastDisplayedCents = smoothedCents;
+        } else {
+          if (isRunning && currentNote !== "-") {
+            let speed = smoothedCents * 0.002;
+            strobeOffset += speed;
+            strobeTexture.offset.x = -strobeOffset;
+          }
         }
-      } else {
-        if (isRunning && currentNote !== "-") {
-          let speed = smoothedCents * 0.002;
-          strobeOffset += speed;
-          strobeTexture.offset.x = -strobeOffset;
-        }
-      }
+      } // End !intonationMode
 
       if (noteNode.userData.lastNote !== currentNote || noteNode.userData.lastOffset !== activeOffset) {
         updateVisuals(currentNote, currentCents);
@@ -1849,6 +2323,8 @@
       noteNode.scale.lerp(new THREE.Vector3(1, 1, 1), 0.1);
       renderer.render(scene, camera);
     }
+
+    document.getElementById('into-reset-btn').addEventListener('click', resetIntonationWizard);
 
     // --- INIT ---
     initScene();
@@ -1870,6 +2346,9 @@
     // Sensitivity Listener
     document.getElementById('sens-slider').addEventListener('input', changeSensitivity);
 
+    // Gate Listener
+    document.getElementById('gate-slider').addEventListener('input', changeGate);
+
     // Input Device Listener
     document.getElementById('audio-device-select').addEventListener('change', changeInputDevice);
 
@@ -1884,6 +2363,7 @@
       if (!isGuide && !isControls && !isName && selectedStringIndex !== -1) {
         selectedStringIndex = -1;
         renderStringGuide();
+        updateFocusFilter(); // Update filter on deselect
       }
     });
 
