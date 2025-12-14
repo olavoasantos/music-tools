@@ -1,0 +1,1898 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Precision Tuner</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Tone.js for better audio synthesis -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <!-- Lucide Icons for UI -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #09090b;
+      color: white;
+      font-family: 'Inter', sans-serif;
+    }
+
+    /* --- LAYOUT CONTAINERS --- */
+    #ui-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    #top-bar {
+      width: 100%;
+      padding: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      pointer-events: auto;
+      z-index: 10;
+    }
+
+    #center-info {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      pointer-events: none;
+      z-index: 20;
+    }
+
+    #bottom-bar {
+      width: 100%;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      pointer-events: auto;
+      z-index: 10;
+    }
+
+    /* --- MODAL --- */
+    #modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(5px);
+      z-index: 100;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    #modal-overlay.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-box {
+      background: #111;
+      border: 1px solid #333;
+      padding: 24px;
+      border-radius: 16px;
+      width: 300px;
+      text-align: center;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+      transform: scale(0.9);
+      transition: transform 0.2s;
+    }
+
+    #modal-overlay.visible .modal-box {
+      transform: scale(1);
+    }
+
+    .modal-title {
+      font-size: 1.1rem;
+      font-weight: bold;
+      margin-bottom: 8px;
+      color: white;
+    }
+
+    .modal-text {
+      color: #888;
+      font-size: 0.9rem;
+      margin-bottom: 20px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .modal-btn {
+      padding: 8px 20px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      font-size: 0.9rem;
+    }
+
+    .btn-cancel {
+      background: #333;
+      color: white;
+    }
+
+    .btn-cancel:hover {
+      background: #444;
+    }
+
+    .btn-danger {
+      background: #ef4444;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #dc2626;
+    }
+
+    /* --- CONTROLS & BUTTONS --- */
+
+    .main-btn {
+      padding: 0 40px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      border-radius: 99px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(12px);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .main-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px);
+    }
+
+    .main-btn.active {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: rgba(239, 68, 68, 0.5);
+      color: #fca5a5;
+    }
+
+    .main-btn.active:hover {
+      background: rgba(239, 68, 68, 0.3);
+    }
+
+    /* Top Left: Dropdown */
+    .tuning-select-wrapper {
+      position: relative;
+      pointer-events: auto;
+    }
+
+    select.minimal-select {
+      appearance: none;
+      -webkit-appearance: none;
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #ccc;
+      padding: 10px 35px 10px 15px;
+      border-radius: 12px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      transition: all 0.2s;
+      max-width: 220px;
+    }
+
+    select.minimal-select:hover {
+      border-color: rgba(255, 255, 255, 0.4);
+      color: white;
+    }
+
+    select.minimal-select:focus {
+      outline: none;
+      border-color: #00dfff;
+    }
+
+    .select-chevron {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+      color: #888;
+    }
+
+    /* Top Center: Tuning Name */
+    #tuning-name-display {
+      font-size: 1.5rem;
+      font-weight: 900;
+      letter-spacing: 1px;
+      color: white;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+      margin-bottom: 10px;
+      pointer-events: auto;
+      /* Enable clicks */
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+
+    #tuning-name-display.editable-name {
+      cursor: text;
+    }
+
+    #tuning-name-display.editable-name:hover {
+      border-bottom-color: rgba(255, 255, 255, 0.3);
+    }
+
+    #tuning-name-input {
+      font-size: 1.5rem;
+      font-weight: 900;
+      letter-spacing: 1px;
+      color: white;
+      background: rgba(0, 0, 0, 0.8);
+      border: none;
+      border-bottom: 2px solid #00dfff;
+      text-align: center;
+      width: 300px;
+      outline: none;
+      pointer-events: auto;
+      text-transform: uppercase;
+    }
+
+    /* Top Right: Settings Toggle */
+    .icon-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #ccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      backdrop-filter: blur(8px);
+    }
+
+    .icon-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: white;
+    }
+
+    .icon-btn.open {
+      background: rgba(0, 223, 255, 0.15);
+      border-color: #00dfff;
+      color: #00dfff;
+    }
+
+    /* Input Level Indicator */
+    #input-level-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: #333;
+      margin-right: 12px;
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.05);
+      transition: background-color 0.1s, box-shadow 0.1s;
+    }
+
+    /* Settings Menu */
+    #settings-menu {
+      position: absolute;
+      top: 75px;
+      right: 20px;
+      width: 280px;
+      /* Slightly wider for input names */
+      background: rgba(15, 15, 18, 0.95);
+      /* Slightly more opaque */
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+      transform-origin: top right;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      opacity: 0;
+      transform: scale(0.95);
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    #settings-menu.visible {
+      opacity: 1;
+      transform: scale(1);
+      pointer-events: auto;
+    }
+
+    .menu-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .menu-label {
+      font-size: 0.75rem;
+      color: #888;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .menu-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #eee;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      min-width: 70px;
+      text-align: center;
+    }
+
+    .menu-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .menu-btn.active {
+      color: #00dfff;
+      border-color: #00dfff;
+      background: rgba(0, 223, 255, 0.15);
+    }
+
+    /* Specific Select for Settings */
+    .settings-select {
+      appearance: none;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #ccc;
+      padding: 4px 20px 4px 8px;
+      border-radius: 6px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.8rem;
+      max-width: 160px;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .channel-grp {
+      display: flex;
+      gap: 4px;
+    }
+
+    .ch-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #888;
+      width: 30px;
+      height: 26px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ch-btn:hover {
+      color: white;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .ch-btn.active {
+      color: #00dfff;
+      border-color: #00dfff;
+      background: rgba(0, 223, 255, 0.15);
+    }
+
+    .menu-btn[data-active="needle"] {
+      color: #00dfff;
+      border-color: #00dfff;
+      background: rgba(0, 223, 255, 0.1);
+    }
+
+    .menu-btn[data-active="strobe"] {
+      color: #00ff66;
+      border-color: #00ff66;
+      background: rgba(0, 255, 102, 0.1);
+    }
+
+    /* Accidental Toggle Styles */
+    .acc-group {
+      display: flex;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 2px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .acc-btn {
+      background: none;
+      border: none;
+      color: #888;
+      padding: 4px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .acc-btn.active {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+    }
+
+    .sweet-btn[data-mode="Standard"] {
+      color: #ccc;
+    }
+
+    .sweet-btn[data-mode="Acoustic"] {
+      color: #ffaa00;
+      border-color: #ffaa00;
+      background: rgba(255, 170, 0, 0.1);
+    }
+
+    .sweet-btn[data-mode="Electric"] {
+      color: #ff00cc;
+      border-color: #ff00cc;
+      background: rgba(255, 0, 204, 0.1);
+    }
+
+    .ref-control-group {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 4px;
+      border-radius: 8px;
+    }
+
+    .ref-mini-btn {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      border: none;
+      color: #888;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .ref-mini-btn:hover {
+      color: white;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+    }
+
+    .ref-display {
+      font-family: monospace;
+      font-size: 0.9rem;
+      color: #fff;
+      min-width: 40px;
+      text-align: center;
+    }
+
+    /* Range Slider */
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #00dfff;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(0, 223, 255, 0.5);
+    }
+
+    /* --- VISUAL GUIDES --- */
+    #string-guide {
+      display: flex;
+      gap: 10px;
+      margin-top: 5px;
+      pointer-events: auto;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .string-indicator {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Inter', sans-serif;
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: #666;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(4px);
+    }
+
+    .string-indicator.active {
+      border-color: #ffd700;
+      color: #ffd700;
+      box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+      transform: scale(1.1);
+      background: rgba(255, 215, 0, 0.1);
+    }
+
+    .string-indicator.editable:hover {
+      border-color: #fff;
+      background: rgba(255, 255, 255, 0.2);
+      cursor: pointer;
+    }
+
+    .string-indicator.editing {
+      border-color: #00dfff;
+      color: #00dfff;
+      box-shadow: 0 0 15px rgba(0, 223, 255, 0.4);
+      background: rgba(0, 223, 255, 0.1);
+      transform: scale(1.1);
+    }
+
+    #custom-controls {
+      display: none;
+      gap: 8px;
+      margin-top: 10px;
+      background: rgba(0, 223, 255, 0.05);
+      padding: 6px 12px;
+      border-radius: 99px;
+      border: 1px solid rgba(0, 223, 255, 0.2);
+      align-items: center;
+      pointer-events: auto;
+    }
+
+    .mini-circle-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 1rem;
+      line-height: 1;
+    }
+
+    .mini-circle-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .del-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: rgba(255, 50, 50, 0.1);
+      border: none;
+      color: #ff5555;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      margin-left: 5px;
+    }
+
+    .del-btn:hover {
+      background: rgba(255, 50, 50, 0.3);
+      color: #fff;
+    }
+
+    #freq-display {
+      position: absolute;
+      bottom: 18%;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'Inter', monospace;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #666;
+      font-variant-numeric: tabular-nums;
+      transition: opacity 0.5s ease;
+      pointer-events: none;
+    }
+
+    .label {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 2rem;
+      font-weight: 800;
+      color: rgba(255, 255, 255, 0.15);
+      user-select: none;
+      z-index: 1;
+    }
+
+    .label-flat {
+      left: 5%;
+    }
+
+    .label-sharp {
+      right: 5%;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="label label-flat">♭</div>
+  <div class="label label-sharp">♯</div>
+
+  <!-- Confirm Modal -->
+  <div id="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-title">Delete Tuning?</div>
+      <div class="modal-text" id="modal-msg">This cannot be undone.</div>
+      <div class="modal-actions">
+        <button class="modal-btn btn-cancel" id="modal-cancel">Cancel</button>
+        <button class="modal-btn btn-danger" id="modal-confirm">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- UI Layer -->
+  <div id="ui-layer">
+
+    <!-- TOP BAR -->
+    <div id="top-bar">
+      <!-- Top Left: Tuning Selector -->
+      <div class="tuning-select-wrapper">
+        <select id="tuning-select" class="minimal-select">
+          <optgroup label="Guitar (6-String)">
+            <option value="g_std">Guitar: Standard</option>
+            <option value="g_dropd">Guitar: Drop D</option>
+            <option value="g_eb">Guitar: Eb (Hendrix)</option>
+            <option value="g_dadgad">Guitar: DADGAD</option>
+            <option value="g_openg">Guitar: Open G</option>
+            <option value="g_emo">Guitar: Midwest Emo</option>
+          </optgroup>
+          <optgroup label="Guitar (Extended)">
+            <option value="g_std7">Guitar: 7-Str Std (B)</option>
+            <option value="g_std8">Guitar: 8-Str Std (F#)</option>
+          </optgroup>
+          <optgroup label="Bass">
+            <option value="b_std">Bass: Standard</option>
+            <option value="b_dropd">Bass: Drop D</option>
+            <option value="b_std5">Bass: 5-String</option>
+            <option value="b_std6">Bass: 6-String</option>
+          </optgroup>
+          <optgroup label="Ukulele">
+            <option value="u_std">Ukulele: Standard</option>
+          </optgroup>
+          <optgroup label="User" id="user-optgroup">
+            <option value="custom">Create New...</option>
+          </optgroup>
+        </select>
+        <div class="select-chevron"><i data-lucide="chevron-down" size="16"></i></div>
+      </div>
+
+      <!-- Top Right: Settings Toggle -->
+      <div style="display: flex; align-items: center;">
+        <div id="input-level-dot" title="Input Signal"></div>
+        <button id="settings-toggle" class="icon-btn"><i data-lucide="settings-2"></i></button>
+      </div>
+    </div>
+
+    <!-- TOP CENTER CONTENT -->
+    <div id="center-info">
+      <div id="tuning-name-display">E STANDARD</div>
+
+      <div id="string-guide">
+        <!-- Populated via JS -->
+      </div>
+
+      <!-- Custom Controls -->
+      <div id="custom-controls">
+        <button class="mini-circle-btn" id="rem-str">-</button>
+        <span style="font-size: 0.7rem; color: #888; margin: 0 4px;">STRINGS</span>
+        <button class="mini-circle-btn" id="add-str">+</button>
+
+        <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.2); margin: 0 8px;"></div>
+
+        <span style="font-size: 0.7rem; color: #00dfff; margin-right: 4px;">EDIT</span>
+        <button class="mini-circle-btn" id="note-down" style="width:20px; height:20px;">‹</button>
+        <span id="selected-note-display"
+          style="font-family: monospace; width: 26px; text-align: center; font-size: 0.9rem;">--</span>
+        <button class="mini-circle-btn" id="note-up" style="width:20px; height:20px;">›</button>
+
+        <!-- Delete Button -->
+        <button class="del-btn" id="delete-tuning" title="Delete Tuning" style="display:none;"><i data-lucide="trash-2"
+            size="14"></i></button>
+      </div>
+    </div>
+
+    <!-- SETTINGS MENU -->
+    <div id="settings-menu">
+      <!-- Input Device -->
+      <div class="menu-row">
+        <span class="menu-label">INPUT</span>
+        <select id="audio-device-select" class="settings-select">
+          <option value="default">Default Device</option>
+        </select>
+      </div>
+
+      <!-- Channel Selection -->
+      <div class="menu-row">
+        <span class="menu-label">CHANNEL</span>
+        <div class="channel-grp">
+          <button class="ch-btn" id="ch-1" onclick="setChannel(0)">1</button>
+          <button class="ch-btn" id="ch-2" onclick="setChannel(1)">2</button>
+          <button class="ch-btn active" id="ch-mix" onclick="setChannel('mix')">MIX</button>
+        </div>
+      </div>
+
+      <div style="width:100%; height:1px; background:rgba(255,255,255,0.1); margin: 8px 0;"></div>
+
+      <div class="menu-row">
+        <span class="menu-label">VISUAL MODE</span>
+        <button id="mode-toggle" class="menu-btn" data-active="needle">Needle</button>
+      </div>
+
+      <!-- Accidental Toggle -->
+      <div class="menu-row">
+        <span class="menu-label">NOTATION</span>
+        <div class="acc-group">
+          <button class="acc-btn active" id="acc-sharp" onclick="setAccidental('#')">♯</button>
+          <button class="acc-btn" id="acc-flat" onclick="setAccidental('b')">♭</button>
+        </div>
+      </div>
+
+      <div class="menu-row">
+        <span class="menu-label">SWEETENER</span>
+        <button id="sweet-toggle" class="menu-btn sweet-btn" data-mode="Standard">Standard</button>
+      </div>
+      <div class="menu-row">
+        <span class="menu-label">REF PITCH</span>
+        <div class="ref-control-group">
+          <button class="ref-mini-btn" id="ref-down">-</button>
+          <span class="ref-display" id="ref-val">440</span>
+          <button class="ref-mini-btn" id="ref-up">+</button>
+        </div>
+      </div>
+
+      <!-- Capo Row -->
+      <div class="menu-row">
+        <span class="menu-label">CAPO</span>
+        <div class="ref-control-group">
+          <button class="ref-mini-btn" id="capo-down">-</button>
+          <span class="ref-display" id="capo-val" style="color:#00dfff">0</span>
+          <button class="ref-mini-btn" id="capo-up">+</button>
+        </div>
+      </div>
+
+      <!-- Sensitivity Row -->
+      <div class="menu-row">
+        <span class="menu-label">SENSITIVITY</span>
+        <input type="range" id="sens-slider" min="0.1" max="3.0" step="0.1" value="1.0">
+      </div>
+    </div>
+
+    <!-- Frequency Readout -->
+    <div id="freq-display" class="opacity-0">0.0 Hz</div>
+
+    <!-- BOTTOM BAR -->
+    <div id="bottom-bar">
+      <button id="control-btn" class="main-btn">Start Tuner</button>
+    </div>
+
+  </div>
+
+  <script>
+    lucide.createIcons();
+
+    // --- STATE ---
+    let audioContext, analyser, microphone, lowPassFilter, inputGainNode;
+    let buflen = 4096;
+    let buf = new Float32Array(buflen);
+    let isRunning = false;
+
+    let tunerMode = 'needle';
+    let referencePitch = 440;
+    let currentSweetenerMode = 'Standard';
+    let settingsOpen = false;
+    let accidentalPreference = '#';
+    let currentCapo = 0;
+    let inputSensitivity = 1.0;
+
+    // Input Config
+    let selectedDeviceId = 'default';
+    let selectedChannel = 'mix'; // 'mix', 0, 1
+    let splitterNode = null;
+
+    // Tone.js Instruments
+    let guitarSynth, bassSynth, ukeSynth;
+    let synthsInitialized = false;
+
+    // Tuning Library
+    const TUNINGS = {
+      'g_std': { name: "E STANDARD", notes: ["E2", "A2", "D3", "G3", "B3", "E4"] },
+      'g_dropd': { name: "DROP D", notes: ["D2", "A2", "D3", "G3", "B3", "E4"] },
+      'g_eb': { name: "Eb STANDARD", notes: ["D#2", "G#2", "C#3", "F#3", "A#3", "D#4"] },
+      'g_dadgad': { name: "DADGAD", notes: ["D2", "A2", "D3", "G3", "A3", "D4"] },
+      'g_openg': { name: "OPEN G", notes: ["D2", "G2", "D3", "G3", "B3", "D4"] },
+      'g_emo': { name: "MIDWEST EMO", notes: ["F2", "A2", "C3", "G3", "C4", "E4"] },
+      'g_std7': { name: "7-STRING STD (B)", notes: ["B1", "E2", "A2", "D3", "G3", "B3", "E4"] },
+      'g_std8': { name: "8-STRING STD (F#)", notes: ["F#1", "B1", "E2", "A2", "D3", "G3", "B3", "E4"] },
+      'b_std': { name: "BASS STANDARD", notes: ["E1", "A1", "D2", "G2"] },
+      'b_dropd': { name: "BASS DROP D", notes: ["D1", "A1", "D2", "G2"] },
+      'b_std5': { name: "BASS 5-STRING", notes: ["B0", "E1", "A1", "D2", "G2"] },
+      'b_std6': { name: "BASS 6-STRING", notes: ["B0", "E1", "A1", "D2", "G2", "C3"] },
+      'u_std': { name: "UKULELE", notes: ["G4", "C4", "E4", "A4"] },
+      'custom': { name: "CREATE CUSTOM...", notes: ["E2", "A2", "D3", "G3", "B3", "E4"] }
+    };
+    let userTunings = {};
+    let currentTuningKey = 'g_std';
+
+    const SWEETENERS = {
+      'Standard': {},
+      'Acoustic': { "E2": -12, "A2": -10, "D3": -8, "G3": -4, "B3": -6, "E4": -3 },
+      'Electric': { "E2": -2, "A2": -2, "D3": -2, "G3": 0, "B3": -2, "E4": 0 }
+    };
+    let activeOffset = 0;
+
+    let currentNote = "-", currentCents = 0, displayedCents = 0, currentFreq = 0;
+    let noteStrings = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+    let scene, camera, renderer;
+    let noteNode, pitchNode, centerLine, gridHelper;
+    let textTexture, textSprite, glowSprite;
+    let centsTexture, centsCtx, offsetSprite, offsetTexture, offsetCtx;
+    // New variables for status icon
+    let statusTexture, statusCtx, currentIconState = 'dot';
+    let strobePlane, strobeTexture, strobeOffset = 0, smoothedCents = 0;
+    let lastDisplayedCents = -999;
+
+    let selectedStringIndex = -1;
+    const ALL_NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+    // Helper to transpose a note string by semitones
+    function transposeNote(noteStr, semitones) {
+      const match = noteStr.match(/^([A-G]#?)(-?\d+)$/);
+      if (!match) return noteStr;
+
+      let noteName = match[1];
+      let octave = parseInt(match[2]);
+      let noteIdx = ALL_NOTES.indexOf(noteName);
+
+      if (noteIdx === -1) return noteStr;
+
+      noteIdx += semitones;
+
+      // Handle octave wrapping
+      while (noteIdx > 11) {
+        noteIdx -= 12;
+        octave++;
+      }
+      while (noteIdx < 0) {
+        noteIdx += 12;
+        octave--;
+      }
+
+      return ALL_NOTES[noteIdx] + octave;
+    }
+
+    // Helper to convert internal Sharp notes to Flats if needed
+    function formatNote(noteString) {
+      if (accidentalPreference === '#') return noteString;
+      const map = { 'C#': 'Db', 'D#': 'Eb', 'F#': 'Gb', 'G#': 'Ab', 'A#': 'Bb' };
+      return noteString.replace(/([A-G]#?)(-?\d+)/, (match, note, octave) => {
+        const flatNote = map[note];
+        return (flatNote || note) + octave;
+      });
+    }
+
+    // --- AUDIO ---
+    function noteFromPitch(frequency) {
+      const noteNum = 12 * (Math.log(frequency / referencePitch) / Math.log(2));
+      return Math.round(noteNum) + 69;
+    }
+    function frequencyFromNoteNumber(note) {
+      return referencePitch * Math.pow(2, (note - 69) / 12);
+    }
+    function centsOffFromPitch(frequency, note) {
+      return Math.floor(1200 * Math.log(frequency / frequencyFromNoteNumber(note)) / Math.log(2));
+    }
+
+    // New Helper: Calculate Frequency from Note String (e.g. "A4")
+    function getFrequencyFromNoteStr(noteStr) {
+      const match = noteStr.match(/^([A-G]#?)(-?\d+)$/);
+      if (!match) return 0;
+
+      let noteName = match[1];
+      let octave = parseInt(match[2]);
+      let noteIdx = ALL_NOTES.indexOf(noteName);
+      if (noteIdx === -1) return 0;
+
+      // MIDI Note calculation (A4 = 69, C4 = 60)
+      const noteNumber = (octave + 1) * 12 + noteIdx;
+      return referencePitch * Math.pow(2, (noteNumber - 69) / 12);
+    }
+
+    // --- NEW: DYNAMIC FILTERING ---
+    function updateFilterForInstrument() {
+      if (!lowPassFilter || !audioContext) return;
+
+      let cutoff = 2500; // Default (Guitar/Uke - crisp high end)
+
+      // Analyze the Tuning Key to guess the instrument
+      if (currentTuningKey.startsWith('b_')) {
+        // BASS MODE: Aggressive Cut
+        cutoff = 450;
+      }
+      else if (currentTuningKey.startsWith('g_std8') || currentTuningKey.startsWith('g_std7') || currentTuningKey.startsWith('g_drop')) {
+        // EXTENDED RANGE / DROP TUNING: Moderate Cut
+        cutoff = 900;
+      }
+
+      // Smoothly transition the filter value to avoid popping artifacts
+      lowPassFilter.frequency.setTargetAtTime(cutoff, audioContext.currentTime, 0.1);
+    }
+
+    // Tone.js Instrument Initialization
+    async function initSynths() {
+      if (synthsInitialized) return;
+      await Tone.start();
+
+      // 1. Clean Electric Guitar
+      guitarSynth = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: "amtriangle" }, // Warmer than pure saw
+        envelope: { attack: 0.02, decay: 0.3, sustain: 0.3, release: 1.5 },
+        volume: -6
+      }).toDestination();
+
+      // 2. Bass (FM Synthesis for Punch)
+      bassSynth = new Tone.MonoSynth({
+        oscillator: { type: "square" },
+        filter: { Q: 2, type: "lowpass", rollover: -12 },
+        envelope: { attack: 0.005, decay: 0.3, sustain: 0.4, release: 2 },
+        filterEnvelope: { attack: 0.001, decay: 0.1, sustain: 0.8, baseFrequency: 200, octaves: 2.5 },
+        volume: -4
+      }).toDestination();
+
+      // 3. Ukulele (Bright Pluck)
+      ukeSynth = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: "triangle" },
+        envelope: { attack: 0.02, decay: 0.3, sustain: 0.1, release: 1 },
+        volume: -6
+      }).toDestination();
+
+      synthsInitialized = true;
+    }
+
+    // Play Tone using Tone.js
+    async function playTone(freq) {
+      if (!synthsInitialized) await initSynths();
+
+      // Determine instrument type from tuning key
+      const key = currentTuningKey;
+
+      // Safety: Ensure Tone context is running
+      if (Tone.context.state !== 'running') {
+        await Tone.start();
+      }
+
+      if (key.startsWith('b_')) {
+        bassSynth.triggerAttackRelease(freq, "8n");
+      } else if (key.startsWith('u_')) {
+        ukeSynth.triggerAttackRelease(freq, "8n");
+      } else {
+        // Default to guitar (includes custom)
+        guitarSynth.triggerAttackRelease(freq, "4n");
+      }
+    }
+
+    function autoCorrelate(buf, sampleRate) {
+      let SIZE = buf.length; let rms = 0;
+      for (let i = 0; i < SIZE; i++) rms += buf[i] * buf[i];
+      rms = Math.sqrt(rms / SIZE);
+      if (rms < 0.01) return -1;
+      let r1 = 0, r2 = SIZE - 1, thres = 0.2;
+      for (let i = 0; i < SIZE / 2; i++) { if (Math.abs(buf[i]) < thres) { r1 = i; break; } }
+      for (let i = 1; i < SIZE / 2; i++) { if (Math.abs(buf[SIZE - i]) < thres) { r2 = SIZE - i; break; } }
+      buf = buf.slice(r1, r2); SIZE = buf.length;
+      let c = new Array(SIZE).fill(0);
+      for (let i = 0; i < SIZE; i++) { for (let j = 0; j < SIZE - i; j++) { c[i] = c[i] + buf[j] * buf[j + i]; } }
+      let d = 0; while (c[d] > c[d + 1]) d++;
+      let maxval = -1, maxpos = -1;
+      for (let i = d; i < SIZE; i++) { if (c[i] > maxval) { maxval = c[i]; maxpos = i; } }
+      let T0 = maxpos;
+      let x1 = c[T0 - 1], x2 = c[T0], x3 = c[T0 + 1];
+      let a = (x1 + x3 - 2 * x2) / 2; let b = (x3 - x1) / 2;
+      if (a) T0 = T0 - b / (2 * a);
+      return sampleRate / T0;
+    }
+
+    function updatePitch() {
+      if (!isRunning) return;
+      analyser.getFloatTimeDomainData(buf);
+
+      // --- INPUT LEVEL CHECK ---
+      let rms = 0;
+      let peak = 0;
+      for (let i = 0; i < buflen; i++) {
+        const val = buf[i];
+        rms += val * val;
+        if (Math.abs(val) > peak) peak = Math.abs(val);
+      }
+      rms = Math.sqrt(rms / buflen);
+
+      // Update Visual Dot
+      const dot = document.getElementById('input-level-dot');
+      if (peak > 0.95) {
+        // Clipping (Red)
+        dot.style.backgroundColor = '#ef4444';
+        dot.style.boxShadow = '0 0 8px rgba(239, 68, 68, 0.8)';
+      } else if (rms > 0.01) {
+        // Healthy Signal (Green)
+        dot.style.backgroundColor = '#22c55e';
+        dot.style.boxShadow = '0 0 5px rgba(34, 197, 94, 0.5)';
+      } else {
+        // Silence / Low Signal (Gray)
+        dot.style.backgroundColor = '#333';
+        dot.style.boxShadow = 'none';
+      }
+
+      let ac = autoCorrelate(buf, audioContext.sampleRate);
+      if (ac !== -1) {
+        let pitch = ac; currentFreq = pitch;
+        let note = noteFromPitch(pitch);
+        let octave = Math.floor(note / 12) - 1;
+        let noteName = noteStrings[note % 12] + octave;
+        currentNote = noteName;
+        let rawCents = centsOffFromPitch(pitch, note);
+        activeOffset = 0;
+        if (currentSweetenerMode !== 'Standard') {
+          const preset = SWEETENERS[currentSweetenerMode];
+          if (preset[noteName] !== undefined) activeOffset = preset[noteName];
+        }
+        displayedCents = rawCents - activeOffset; currentCents = displayedCents;
+        updateStringGuide(noteName);
+      }
+      requestAnimationFrame(updatePitch);
+    }
+
+    // --- CUSTOM TUNING ---
+    function loadCustomTuning() {
+      const savedData = localStorage.getItem('precision_user_tunings');
+      if (savedData) {
+        userTunings = JSON.parse(savedData);
+        Object.assign(TUNINGS, userTunings);
+      }
+      updateTuningDropdown();
+    }
+
+    function saveUserTunings() {
+      localStorage.setItem('precision_user_tunings', JSON.stringify(userTunings));
+      updateTuningDropdown();
+    }
+
+    function updateTuningDropdown() {
+      const optGroup = document.getElementById('user-optgroup');
+      optGroup.innerHTML = '';
+      const createOpt = document.createElement('option');
+      createOpt.value = 'custom'; createOpt.textContent = 'Create New...';
+      optGroup.appendChild(createOpt);
+      Object.keys(userTunings).forEach(key => {
+        const opt = document.createElement('option');
+        opt.value = key; opt.textContent = userTunings[key].name;
+        optGroup.appendChild(opt);
+      });
+      document.getElementById('tuning-select').value = currentTuningKey;
+    }
+
+    // Modal Logic
+    function showDeleteModal(name, onConfirm) {
+      const overlay = document.getElementById('modal-overlay');
+      const msg = document.getElementById('modal-msg');
+      const btnConfirm = document.getElementById('modal-confirm');
+      const btnCancel = document.getElementById('modal-cancel');
+
+      msg.textContent = `Are you sure you want to delete "${name}"?`;
+      overlay.classList.add('visible');
+
+      const cleanup = () => {
+        overlay.classList.remove('visible');
+        btnConfirm.removeEventListener('click', handleConfirm);
+        btnCancel.removeEventListener('click', handleCancel);
+      };
+
+      const handleConfirm = () => { cleanup(); onConfirm(); };
+      const handleCancel = () => { cleanup(); };
+
+      btnConfirm.addEventListener('click', handleConfirm);
+      btnCancel.addEventListener('click', handleCancel);
+    }
+
+    function deleteCustomTuning(e) {
+      e.stopPropagation();
+      if (currentTuningKey.startsWith('user_')) {
+        showDeleteModal(TUNINGS[currentTuningKey].name, () => {
+          delete userTunings[currentTuningKey];
+          delete TUNINGS[currentTuningKey];
+
+          // Reset to standard FIRST
+          currentTuningKey = 'g_std';
+          document.getElementById('tuning-select').value = 'g_std';
+
+          // Then save and update UI
+          saveUserTunings();
+          renderStringGuide();
+          changeTuning(); // Ensure filters update
+        });
+      }
+    }
+
+    // --- UI ---
+    function setAccidental(type) {
+      accidentalPreference = type;
+      document.getElementById('acc-sharp').classList.toggle('active', type === '#');
+      document.getElementById('acc-flat').classList.toggle('active', type === 'b');
+      renderStringGuide();
+      if (currentNote !== "-") { noteNode.userData.lastNote = null; }
+    }
+
+    function toggleSettings() {
+      settingsOpen = !settingsOpen;
+      const menu = document.getElementById('settings-menu');
+      const btn = document.getElementById('settings-toggle');
+      if (settingsOpen) { menu.classList.add('visible'); btn.classList.add('open'); }
+      else { menu.classList.remove('visible'); btn.classList.remove('open'); }
+    }
+
+    function updateStringGuide(detectedNote) {
+      const container = document.getElementById('string-guide');
+      const indicators = container.getElementsByClassName('string-indicator');
+      const baseNotes = TUNINGS[currentTuningKey].notes;
+
+      // Map base notes through Capo transposition
+      const targetNotes = baseNotes.map(n => transposeNote(n, currentCapo));
+
+      for (let i = 0; i < indicators.length; i++) {
+        const targetNote = targetNotes[i];
+        let isActive = (targetNote === detectedNote);
+        let isEditing = isCustomMode() && i === selectedStringIndex;
+
+        indicators[i].className = 'string-indicator';
+        if (isCustomMode()) indicators[i].classList.add('editable');
+        if (isActive) indicators[i].classList.add('active');
+        if (isEditing) indicators[i].classList.add('editing');
+      }
+    }
+
+    function isCustomMode() { return currentTuningKey === 'custom' || currentTuningKey.startsWith('user_'); }
+
+    function renderStringGuide() {
+      const container = document.getElementById('string-guide');
+      const controls = document.getElementById('custom-controls');
+      const nameDisplay = document.getElementById('tuning-name-display');
+      const deleteBtn = document.getElementById('delete-tuning');
+
+      let displayName = TUNINGS[currentTuningKey].name;
+      // Append Capo indicator to Title if active
+      if (currentCapo > 0) {
+        displayName += ` <span style="font-size:0.6em; color:#00dfff; background:rgba(0,223,255,0.1); padding:2px 6px; border-radius:4px; vertical-align:middle;">CAPO ${currentCapo}</span>`;
+      }
+      nameDisplay.innerHTML = displayName; // Use innerHTML for badge
+
+      if (isCustomMode()) {
+        nameDisplay.classList.add('editable-name');
+        nameDisplay.title = "Click to rename/save";
+        controls.style.display = 'flex';
+        deleteBtn.style.display = currentTuningKey.startsWith('user_') ? 'flex' : 'none';
+      } else {
+        nameDisplay.classList.remove('editable-name');
+        nameDisplay.title = "";
+        controls.style.display = 'none';
+        deleteBtn.style.display = 'none';
+        selectedStringIndex = -1;
+      }
+
+      container.innerHTML = '';
+      const baseNotes = TUNINGS[currentTuningKey].notes;
+
+      baseNotes.forEach((baseNote, index) => {
+        // Apply Capo Shift
+        const realNote = transposeNote(baseNote, currentCapo);
+
+        const el = document.createElement('div');
+        el.className = 'string-indicator';
+        if (isCustomMode()) el.classList.add('editable');
+        el.textContent = formatNote(realNote);
+
+        el.onclick = (e) => {
+          e.stopPropagation();
+
+          // PLAY TONE uses the Transposed Note
+          const freq = getFrequencyFromNoteStr(realNote);
+          if (freq > 0) playTone(freq);
+
+          if (isCustomMode()) {
+            selectedStringIndex = index;
+            updateEditDisplay();
+            renderStringGuide();
+          }
+        };
+        if (index === selectedStringIndex && isCustomMode()) el.classList.add('editing');
+        container.appendChild(el);
+      });
+      updateEditDisplay();
+    }
+
+    function updateEditDisplay() {
+      const display = document.getElementById('selected-note-display');
+      if (selectedStringIndex !== -1 && isCustomMode()) {
+        // Show base note or transposed note?
+        // For editing "Custom", we edit the BASE note (Capo 0 position) generally.
+        // But confusing if Capo is active.
+        // Let's show the transposed note in the editor to avoid confusion.
+        const baseNote = TUNINGS[currentTuningKey].notes[selectedStringIndex];
+        const realNote = transposeNote(baseNote, currentCapo);
+
+        display.textContent = formatNote(realNote);
+        display.style.color = "#00dfff";
+      } else {
+        display.textContent = "--";
+        display.style.color = "#888";
+      }
+    }
+
+    function startRenaming(e) {
+      if (e.target.id === 'tuning-name-input') return;
+      if (!isCustomMode()) return;
+      if (document.getElementById('tuning-name-input')) return;
+
+      const display = document.getElementById('tuning-name-display');
+      let currentName = TUNINGS[currentTuningKey].name;
+      if (currentTuningKey === 'custom') currentName = "MY TUNING";
+
+      display.innerHTML = '';
+      const input = document.createElement('input');
+      input.id = 'tuning-name-input';
+      input.value = currentName;
+
+      input.onclick = (ev) => { ev.stopPropagation(); };
+      input.onblur = finishRenaming;
+      input.onkeydown = (e) => { if (e.key === 'Enter') finishRenaming(); };
+
+      display.appendChild(input);
+      input.select();
+    }
+
+    function finishRenaming() {
+      const input = document.getElementById('tuning-name-input');
+      if (!input) return;
+      let newName = input.value.trim();
+      if (newName.length === 0) newName = "CUSTOM TUNING";
+      newName = newName.toUpperCase();
+
+      if (currentTuningKey === 'custom') {
+        const newId = 'user_' + Date.now();
+        const newNotes = [...TUNINGS['custom'].notes];
+        userTunings[newId] = { name: newName, notes: newNotes };
+        TUNINGS[newId] = userTunings[newId];
+        currentTuningKey = newId;
+        saveUserTunings();
+      } else {
+        TUNINGS[currentTuningKey].name = newName;
+        userTunings[currentTuningKey].name = newName;
+        saveUserTunings();
+      }
+      renderStringGuide();
+    }
+
+    // --- INPUT CONFIG LOGIC ---
+
+    async function populateAudioDevices() {
+      try {
+        // We need permission first to see labels
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const audioInputs = devices.filter(device => device.kind === 'audioinput');
+        const select = document.getElementById('audio-device-select');
+
+        // Keep current selection if possible, else default
+        const currentVal = select.value;
+        select.innerHTML = ''; // Clear
+
+        // Add Default
+        const defOpt = document.createElement('option');
+        defOpt.value = 'default';
+        defOpt.textContent = 'Default Device';
+        select.appendChild(defOpt);
+
+        audioInputs.forEach(device => {
+          const option = document.createElement('option');
+          option.value = device.deviceId;
+          option.textContent = device.label || `Microphone ${select.length}`;
+          select.appendChild(option);
+        });
+
+        // Restore selection if it still exists
+        if (Array.from(select.options).some(o => o.value === selectedDeviceId)) {
+          select.value = selectedDeviceId;
+        }
+      } catch (e) {
+        console.warn("Could not list audio devices:", e);
+      }
+    }
+
+    function setChannel(ch) {
+      selectedChannel = ch;
+      // Update UI
+      document.getElementById('ch-1').className = ch === 0 ? 'ch-btn active' : 'ch-btn';
+      document.getElementById('ch-2').className = ch === 1 ? 'ch-btn active' : 'ch-btn';
+      document.getElementById('ch-mix').className = ch === 'mix' ? 'ch-btn active' : 'ch-btn';
+
+      // Update Routing if running
+      if (isRunning && audioContext) {
+        connectInputRouting();
+      }
+    }
+
+    async function changeInputDevice() {
+      selectedDeviceId = document.getElementById('audio-device-select').value;
+      if (isRunning) {
+        // Restart stream with new device
+        await toggleAudio(); // Stop
+        await toggleAudio(); // Start
+      }
+    }
+
+    function connectInputRouting() {
+      if (!microphone || !inputGainNode || !analyser) return;
+
+      // Disconnect everything first to reset
+      try { microphone.disconnect(); } catch (e) { }
+      if (splitterNode) {
+        try { splitterNode.disconnect(); } catch (e) { }
+      }
+
+      // Route based on channel
+      if (selectedChannel === 'mix') {
+        // Simple: Mic -> Gain -> Filter -> Analyser
+        microphone.connect(inputGainNode);
+      } else {
+        // Splitter Logic
+        if (!splitterNode) splitterNode = audioContext.createChannelSplitter(2);
+
+        microphone.connect(splitterNode);
+        // Connect specific channel to Gain
+        // Note: If device is Mono, channel 1 might be silent or undefined.
+        // Web Audio usually upmixes mono to ch 0 and 1, but hardware inputs differ.
+        splitterNode.connect(inputGainNode, selectedChannel);
+      }
+    }
+
+    // --- HANDLERS ---
+    async function toggleAudio() {
+      const btn = document.getElementById('control-btn');
+      const freqDisplay = document.getElementById('freq-display');
+      if (isRunning) {
+        isRunning = false;
+        if (audioContext) await audioContext.suspend();
+        btn.textContent = "START TUNER";
+        btn.classList.remove('active');
+        freqDisplay.classList.remove('opacity-100');
+        freqDisplay.classList.add('opacity-0');
+        currentNote = "-"; currentCents = 0; activeOffset = 0;
+        document.getElementById('input-level-dot').style.backgroundColor = '#333'; // Reset dot
+        updateVisuals("-", 0);
+        return;
+      }
+      try {
+        if (!audioContext) {
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        // Initialize Analyser only if it doesn't exist
+        if (!analyser) {
+          analyser = audioContext.createAnalyser();
+          analyser.fftSize = 8192;
+
+          // Create Nodes
+          lowPassFilter = audioContext.createBiquadFilter();
+          lowPassFilter.type = "lowpass";
+          lowPassFilter.frequency.value = 2500;
+
+          inputGainNode = audioContext.createGain();
+          inputGainNode.gain.value = inputSensitivity;
+          inputGainNode.connect(lowPassFilter);
+          lowPassFilter.connect(analyser);
+        }
+
+        if (audioContext.state === 'suspended') {
+          await audioContext.resume();
+        }
+
+        // --- GET USER MEDIA WITH CONSTRAINTS ---
+        const constraints = {
+          audio: {
+            deviceId: selectedDeviceId !== 'default' ? { exact: selectedDeviceId } : undefined,
+            echoCancellation: false,
+            autoGainControl: false,
+            noiseSuppression: false,
+            channelCount: 2 // Request stereo to access inputs 1 & 2 separately
+          }
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        microphone = audioContext.createMediaStreamSource(stream);
+
+        // Apply Channel Routing
+        connectInputRouting();
+
+        // Now that we have permission, populate device list
+        populateAudioDevices();
+
+        // Update filter based on current tuning immediately on start
+        updateFilterForInstrument();
+
+        // Also init Tone.js on user gesture
+        await initSynths();
+
+        isRunning = true;
+        btn.textContent = "STOP";
+        btn.classList.add('active');
+        freqDisplay.classList.remove('opacity-0');
+        freqDisplay.classList.add('opacity-100');
+        updatePitch();
+      } catch (e) {
+        console.error(e);
+        alert("Microphone access is required or device unavailable.");
+      }
+    }
+
+    function changeMode() {
+      tunerMode = tunerMode === 'needle' ? 'strobe' : 'needle';
+      const btn = document.getElementById('mode-toggle');
+      btn.textContent = tunerMode === 'needle' ? 'Needle' : 'Strobe';
+      btn.setAttribute('data-active', tunerMode);
+      if (tunerMode === 'strobe') {
+        pitchNode.visible = false; gridHelper.visible = false;
+        strobePlane.visible = true; centerLine.material.opacity = 0.5;
+      } else {
+        pitchNode.visible = true; gridHelper.visible = true;
+        strobePlane.visible = false; centerLine.material.opacity = 0.8;
+      }
+    }
+
+    function changeSweetener() {
+      if (currentSweetenerMode === 'Standard') currentSweetenerMode = 'Acoustic';
+      else if (currentSweetenerMode === 'Acoustic') currentSweetenerMode = 'Electric';
+      else currentSweetenerMode = 'Standard';
+      const btn = document.getElementById('sweet-toggle');
+      btn.textContent = currentSweetenerMode;
+      btn.setAttribute('data-mode', currentSweetenerMode);
+    }
+
+    function changeRefPitch(amount) {
+      referencePitch += amount;
+      if (referencePitch < 390) referencePitch = 390;
+      if (referencePitch > 490) referencePitch = 490;
+      document.getElementById('ref-val').innerText = referencePitch;
+    }
+
+    // Sensitivity Logic
+    function changeSensitivity() {
+      inputSensitivity = parseFloat(document.getElementById('sens-slider').value);
+      if (inputGainNode) {
+        inputGainNode.gain.setTargetAtTime(inputSensitivity, audioContext.currentTime, 0.1);
+      }
+    }
+
+    // Capo Logic
+    function changeCapo(amount) {
+      currentCapo += amount;
+      if (currentCapo < 0) currentCapo = 0;
+      if (currentCapo > 11) currentCapo = 11; // Max Capo 11
+
+      document.getElementById('capo-val').innerText = currentCapo;
+
+      // Re-render guide with new targets
+      renderStringGuide();
+    }
+
+    function changeTuning() {
+      currentTuningKey = document.getElementById('tuning-select').value;
+      renderStringGuide();
+      // Update the filter cutoffs for the new instrument
+      updateFilterForInstrument();
+    }
+
+    function initScene() {
+      scene = new THREE.Scene();
+      scene.fog = new THREE.FogExp2(0x09090b, 0.05);
+
+      const aspect = window.innerWidth / window.innerHeight;
+      const frustumSize = 10;
+      camera = new THREE.OrthographicCamera(
+        frustumSize * aspect / -2, frustumSize * aspect / 2,
+        frustumSize / 2, frustumSize / -2, 1, 1000
+      );
+      camera.position.z = 10; camera.position.y = 1;
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      document.body.appendChild(renderer.domElement);
+
+      const gridGeo = new THREE.BufferGeometry();
+      const gridPoints = [];
+      const gridSize = 20; const divisions = 20; const step = gridSize / divisions;
+      for (let i = 0; i <= divisions; i++) {
+        let p = -gridSize / 2 + i * step;
+        gridPoints.push(p, -gridSize / 2, -5, p, gridSize / 2, -5);
+        gridPoints.push(-gridSize / 2, p, -5, gridSize / 2, p, -5);
+      }
+      gridGeo.setAttribute('position', new THREE.Float32BufferAttribute(gridPoints, 3));
+      const gridMat = new THREE.LineBasicMaterial({ color: 0x555555, transparent: true, opacity: 0.3 });
+      gridHelper = new THREE.LineSegments(gridGeo, gridMat);
+      scene.add(gridHelper);
+
+      const sCanvas = document.createElement('canvas'); sCanvas.width = 512; sCanvas.height = 512;
+      const sCtx = sCanvas.getContext('2d'); sCtx.fillStyle = '#09090b'; sCtx.fillRect(0, 0, 512, 512);
+      sCtx.fillStyle = '#22c55e';
+      for (let i = 0; i < 8; i++) {
+        let x = i * (512 / 8);
+        let grad = sCtx.createLinearGradient(x, 0, x + (512 / 8), 0);
+        grad.addColorStop(0, 'rgba(34, 197, 94, 0)'); grad.addColorStop(0.5, 'rgba(34, 197, 94, 0.4)'); grad.addColorStop(1, 'rgba(34, 197, 94, 0)');
+        sCtx.fillStyle = grad; sCtx.fillRect(x, 0, 512 / 8, 512);
+      }
+      strobeTexture = new THREE.CanvasTexture(sCanvas);
+      strobeTexture.wrapS = THREE.RepeatWrapping; strobeTexture.wrapT = THREE.RepeatWrapping;
+      const strobeGeo = new THREE.PlaneGeometry(20, 10);
+      const strobeMat = new THREE.MeshBasicMaterial({ map: strobeTexture, transparent: true, opacity: 0.8 });
+      strobePlane = new THREE.Mesh(strobeGeo, strobeMat);
+      strobePlane.position.z = -2; strobePlane.visible = false;
+      scene.add(strobePlane);
+
+      const centerGeo = new THREE.PlaneGeometry(0.08, 20);
+      const centerMat = new THREE.MeshBasicMaterial({ color: 0x555555, transparent: true, opacity: 0.8 });
+      centerLine = new THREE.Mesh(centerGeo, centerMat);
+      centerLine.position.z = -1; scene.add(centerLine);
+
+      const nodeGeo = new THREE.CircleGeometry(0.8, 64);
+      const nodeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+      noteNode = new THREE.Mesh(nodeGeo, nodeMat);
+      noteNode.position.y = -1.5;
+      const nodeRingGeo = new THREE.RingGeometry(0.8, 0.85, 64);
+      const nodeRingMat = new THREE.MeshBasicMaterial({ color: 0x444444 });
+      const nodeRing = new THREE.Mesh(nodeRingGeo, nodeRingMat);
+      noteNode.add(nodeRing);
+      scene.add(noteNode);
+
+      const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      textTexture = new THREE.CanvasTexture(canvas);
+      const spriteMat = new THREE.SpriteMaterial({ map: textTexture });
+      textSprite = new THREE.Sprite(spriteMat);
+      textSprite.scale.set(1.5, 1.5, 1); textSprite.position.z = 0.1;
+      noteNode.add(textSprite);
+
+      const oCanvas = document.createElement('canvas'); oCanvas.width = 256; oCanvas.height = 64;
+      offsetCtx = oCanvas.getContext('2d'); offsetTexture = new THREE.CanvasTexture(oCanvas);
+      const oMat = new THREE.SpriteMaterial({ map: offsetTexture, transparent: true });
+      offsetSprite = new THREE.Sprite(oMat);
+      offsetSprite.scale.set(1.5, 0.375, 1); offsetSprite.position.y = -1.2;
+      noteNode.add(offsetSprite);
+
+      // -- PITCH NODE (The Indicator) --
+      // Creating a "Map Pin" shape - Tweaked for bigger head, shorter tail
+      const pinShape = new THREE.Shape();
+      const pinR = 0.75;
+      const tailY = -1.1;
+      const angleOffset = 0.7; // Wider angle for the tail connection
+
+      // Draw circle part (top)
+      pinShape.absarc(0, 0, pinR, -angleOffset, Math.PI + angleOffset, false);
+      // Draw point (bottom)
+      pinShape.lineTo(0, tailY);
+      pinShape.closePath();
+
+      const pitchGeo = new THREE.ShapeGeometry(pinShape);
+      const pitchMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+      pitchNode = new THREE.Mesh(pitchGeo, pitchMat);
+      pitchNode.position.y = 2.5;
+
+      // Glow (Centered on the circle head)
+      const glowCanvas = document.createElement('canvas'); glowCanvas.width = 64; glowCanvas.height = 64;
+      const gCtx = glowCanvas.getContext('2d');
+      const gradient = gCtx.createRadialGradient(32, 32, 0, 32, 32, 32);
+      gradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)'); gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      gCtx.fillStyle = gradient; gCtx.fillRect(0, 0, 64, 64);
+      const glowTexture = new THREE.CanvasTexture(glowCanvas);
+      const glowMat = new THREE.SpriteMaterial({ map: glowTexture, transparent: true, opacity: 0.6, depthWrite: false });
+      glowSprite = new THREE.Sprite(glowMat);
+      glowSprite.scale.set(3.5, 3.5, 1);
+      glowSprite.position.set(0, 0, 0); // Center on head
+      pitchNode.add(glowSprite);
+
+      // Cents Display (Floating above)
+      const cCanvas = document.createElement('canvas'); cCanvas.width = 256; cCanvas.height = 128;
+      centsCtx = cCanvas.getContext('2d'); centsTexture = new THREE.CanvasTexture(cCanvas);
+      const cMat = new THREE.SpriteMaterial({ map: centsTexture, transparent: true });
+      const cSprite = new THREE.Sprite(cMat);
+      cSprite.scale.set(2, 1, 1); cSprite.position.y = 1.0;
+      pitchNode.add(cSprite);
+
+      // -- STATUS ICON (Center of Pin) --
+      const statusCanvas = document.createElement('canvas');
+      statusCanvas.width = 128; statusCanvas.height = 128;
+      statusCtx = statusCanvas.getContext('2d');
+      statusTexture = new THREE.CanvasTexture(statusCanvas);
+
+      const statusMat = new THREE.SpriteMaterial({ map: statusTexture, transparent: true });
+      const statusSprite = new THREE.Sprite(statusMat);
+      statusSprite.scale.set(0.8, 0.8, 1); // Slightly larger to fit new head size
+      statusSprite.position.z = 0.02; // Sits on top
+      pitchNode.add(statusSprite);
+
+      // Draw initial state
+      drawStatusIcon('dot');
+
+      scene.add(pitchNode);
+
+      window.addEventListener('resize', onResize);
+      updateVisuals("-", 0);
+    }
+
+    // New Helper: Draw Status Icon
+    function drawStatusIcon(state) {
+      const ctx = statusCtx;
+      const w = 128;
+      const h = 128;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Changed to WHITE for better contrast against colored pin
+      ctx.strokeStyle = '#ffffff';
+      ctx.fillStyle = '#ffffff';
+      ctx.lineWidth = 12;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      const cx = w / 2;
+      const cy = h / 2;
+
+      if (state === 'check') {
+        // Draw Checkmark
+        ctx.beginPath();
+        ctx.moveTo(30, 65);
+        ctx.lineTo(55, 90);
+        ctx.lineTo(95, 40);
+        ctx.stroke();
+      } else if (state === 'x') {
+        // Draw X
+        const pad = 35;
+        ctx.beginPath();
+        ctx.moveTo(pad, pad);
+        ctx.lineTo(w - pad, h - pad);
+        ctx.moveTo(w - pad, pad);
+        ctx.lineTo(pad, h - pad);
+        ctx.stroke();
+      } else {
+        // Draw Dot
+        ctx.beginPath();
+        ctx.arc(cx, cy, 20, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      statusTexture.needsUpdate = true;
+    }
+
+    function updateVisuals(note, cents) {
+      const ctx = textTexture.image.getContext('2d');
+      const w = 256;
+      ctx.clearRect(0, 0, w, w);
+      ctx.fillStyle = "#ffffff"; ctx.font = "bold 110px Inter";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+
+      // Fix: Apply notation formatting to the main display note
+      let displayNote = note;
+      if (note !== "-") {
+        displayNote = formatNote(note);
+      }
+
+      ctx.fillText(displayNote, w / 2, w / 2);
+      textTexture.needsUpdate = true;
+
+      const oCtx = offsetCtx;
+      oCtx.clearRect(0, 0, 256, 64);
+      if (activeOffset !== 0) {
+        oCtx.fillStyle = "#ffaa00"; oCtx.font = "bold 32px Inter";
+        oCtx.textAlign = "center"; oCtx.textBaseline = "middle";
+        oCtx.fillText(`OFFSET: ${activeOffset}c`, 128, 32);
+      }
+      offsetTexture.needsUpdate = true;
+    }
+
+    function onResize() {
+      const aspect = window.innerWidth / window.innerHeight;
+      const frustumSize = 10;
+      camera.left = -frustumSize * aspect / 2; camera.right = frustumSize * aspect / 2;
+      camera.top = frustumSize / 2; camera.bottom = -frustumSize / 2;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      if (isRunning) { document.getElementById('freq-display').innerText = currentFreq.toFixed(1) + " Hz"; }
+      if (isRunning && currentNote !== "-") { smoothedCents += (currentCents - smoothedCents) * 0.15; }
+      else { smoothedCents += (0 - smoothedCents) * 0.1; }
+
+      const absCents = Math.abs(smoothedCents);
+      const t = Math.min(absCents / 40, 1);
+      let colorGreen = new THREE.Color(0x22c55e);
+      const colorRed = new THREE.Color(0xef4444);
+      let currentColor = colorGreen.clone().lerp(colorRed, t);
+
+      // Lock-on Logic
+      let xPos = (smoothedCents / 50) * 3.5;
+      let targetIcon = 'dot';
+
+      // Determine Icon State based on distance
+      if (absCents > 25) {
+        targetIcon = 'x';
+      } else if (absCents < 2) {
+        targetIcon = 'check'; // Sweet spot
+      }
+
+      // "Magnetic" Snap Override
+      if (isRunning && currentNote !== "-" && absCents < 1.2) {
+        xPos = 0; // Snap visual position to center
+        // Boost color to bright cyan/white to indicate lock
+        currentColor = new THREE.Color(0x00ffff).lerp(new THREE.Color(0xffffff), 0.5);
+        targetIcon = 'check';
+      } else if (!isRunning || currentNote === "-") {
+        targetIcon = 'dot';
+      }
+
+      // Only redraw canvas if state changed to save performance
+      if (targetIcon !== currentIconState) {
+        drawStatusIcon(targetIcon);
+        currentIconState = targetIcon;
+      }
+
+      if (tunerMode === 'needle') {
+        pitchNode.position.x = xPos;
+        pitchNode.material.color = currentColor;
+        if (glowSprite) glowSprite.material.color = currentColor;
+
+        if (Math.abs(smoothedCents - lastDisplayedCents) > 0.1 || (smoothedCents === 0 && lastDisplayedCents !== 0)) {
+          const ctx = centsCtx;
+          ctx.clearRect(0, 0, 256, 128);
+          if (isRunning && currentNote !== "-") {
+            const val = smoothedCents.toFixed(1);
+            const sign = smoothedCents > 0 ? "+" : "";
+            const text = `${sign}${val}`;
+            ctx.textAlign = "center";
+            const r = Math.floor(currentColor.r * 255);
+            const g = Math.floor(currentColor.g * 255);
+            const b = Math.floor(currentColor.b * 255);
+            const cssColor = `rgb(${r},${g},${b})`;
+            ctx.font = "bold 45px Inter"; ctx.fillStyle = cssColor;
+            ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 4;
+            ctx.fillText(text, 128, 60);
+            ctx.font = "bold 20px Inter"; ctx.fillStyle = "#888888";
+            ctx.fillText("cents", 128, 85);
+          }
+          centsTexture.needsUpdate = true;
+          lastDisplayedCents = smoothedCents;
+        }
+      } else {
+        if (isRunning && currentNote !== "-") {
+          let speed = smoothedCents * 0.002;
+          strobeOffset += speed;
+          strobeTexture.offset.x = -strobeOffset;
+        }
+      }
+
+      if (noteNode.userData.lastNote !== currentNote || noteNode.userData.lastOffset !== activeOffset) {
+        updateVisuals(currentNote, currentCents);
+        noteNode.userData.lastNote = currentNote;
+        noteNode.userData.lastOffset = activeOffset;
+        noteNode.scale.setScalar(1.2);
+      }
+      noteNode.scale.lerp(new THREE.Vector3(1, 1, 1), 0.1);
+      renderer.render(scene, camera);
+    }
+
+    // --- INIT ---
+    initScene();
+    loadCustomTuning();
+    renderStringGuide();
+    animate();
+
+    document.getElementById('control-btn').addEventListener('click', toggleAudio);
+    document.getElementById('settings-toggle').addEventListener('click', toggleSettings);
+    document.getElementById('mode-toggle').addEventListener('click', changeMode);
+    document.getElementById('sweet-toggle').addEventListener('click', changeSweetener);
+    document.getElementById('ref-up').addEventListener('click', () => changeRefPitch(1));
+    document.getElementById('ref-down').addEventListener('click', () => changeRefPitch(-1));
+
+    // Capo Listeners
+    document.getElementById('capo-up').addEventListener('click', () => changeCapo(1));
+    document.getElementById('capo-down').addEventListener('click', () => changeCapo(-1));
+
+    // Sensitivity Listener
+    document.getElementById('sens-slider').addEventListener('input', changeSensitivity);
+
+    // Input Device Listener
+    document.getElementById('audio-device-select').addEventListener('change', changeInputDevice);
+
+    document.getElementById('tuning-select').addEventListener('change', changeTuning);
+    document.getElementById('tuning-name-display').addEventListener('click', startRenaming);
+    document.getElementById('delete-tuning').addEventListener('click', deleteCustomTuning);
+
+    document.addEventListener('click', (e) => {
+      const isGuide = e.target.closest('#string-guide');
+      const isControls = e.target.closest('#custom-controls');
+      const isName = e.target.id === 'tuning-name-display' || e.target.id === 'tuning-name-input';
+      if (!isGuide && !isControls && !isName && selectedStringIndex !== -1) {
+        selectedStringIndex = -1;
+        renderStringGuide();
+      }
+    });
+
+    document.getElementById('add-str').addEventListener('click', (e) => { e.stopPropagation(); modifyStringCount(1); });
+    document.getElementById('rem-str').addEventListener('click', (e) => { e.stopPropagation(); modifyStringCount(-1); });
+    document.getElementById('note-up').addEventListener('click', (e) => { e.stopPropagation(); shiftSelectedNote(1); });
+    document.getElementById('note-down').addEventListener('click', (e) => { e.stopPropagation(); shiftSelectedNote(-1); });
+
+  </script>
+</body>
+
+</html>
